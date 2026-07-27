@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { Recommendation } from '../engine/recommend';
 import { findGlossary } from '../data/glossary';
+import ItemIcon from './ItemIcon';
 
 interface Props {
   rec: Recommendation;
@@ -27,6 +28,7 @@ export default function OutfitCard({ rec, index, prefix = 'LOOK' }: Props) {
       <header className="outfit-head">
         <span className="outfit-no">
           {prefix} {String(index + 1).padStart(2, '0')}
+          {outfit.tone === 'warm' && <span className="outfit-tone">웜톤</span>}
         </span>
         {rainWarning && <span className="outfit-warn">우천 주의 소재</span>}
       </header>
@@ -43,7 +45,10 @@ export default function OutfitCard({ rec, index, prefix = 'LOOK' }: Props) {
           return (
             <div key={key}>
               <dt>{label}</dt>
-              <dd>{value}</dd>
+              <dd>
+                <ItemIcon field={key} text={value} />
+                <span>{value}</span>
+              </dd>
             </div>
           );
         })}

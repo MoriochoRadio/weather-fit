@@ -1,5 +1,6 @@
-import type { Advice, Outfit, StyleId, TempBand, WeatherSummary } from '../types';
+import type { Advice, Outfit, StyleId, TempBand, ToneFilter, WeatherSummary } from '../types';
 import { OUTFITS } from '../data/outfits';
+import { daytimeFeels } from './briefing';
 
 export const BAND_LABELS: Record<TempBand, string> = {
   freezing: '한파',
@@ -10,8 +11,14 @@ export const BAND_LABELS: Record<TempBand, string> = {
   hot: '더움',
 };
 
-/** 추천 기준 온도: 아침에 봐도 낮 기준으로 입도록 최고기온에 가중 */
+/**
+ * 추천 기준 온도.
+ * 시간별 예보가 있으면 활동 시간대(9~21시) 평균 체감으로 하루 전체에 맞추고 (FR-17),
+ * 없으면 최고기온·현재 체감 평균으로 폴백.
+ */
 export function referenceTemp(w: WeatherSummary): number {
+  const daytime = daytimeFeels(w);
+  if (daytime !== null) return (daytime + w.tempMax) / 2;
   return (w.tempMax + w.feelsLike) / 2;
 }
 
@@ -74,15 +81,28 @@ export interface Recommendation {
 /**
  * 스타일 × 날씨에 맞는 코디 목록.
  * - 기온대가 맞는 코디만 후보로 선정
+ * - 톤 필터(전체/쿨톤/웜톤) 적용, '전체'는 쿨톤 우선 정렬 (FR-15)
  * - 강수 시 rainOk=false 코디는 뒤로 밀고 경고 표시 (제거하지 않음)
  * - dateKey(YYYY-MM-DD) 기반 시드로 매일 순서가 바뀜
  */
-export function recommend(style: StyleId, weather: WeatherSummary, dateKey: string): Recommendation[] {
+export function recommend(
+  style: StyleId,
+  weather: WeatherSummary,
+  dateKey: string,
+  tone: ToneFilter = 'all',
+): Recommendation[] {
   const band = tempBand(referenceTemp(weather));
   const rainy = isRainy(weather) || isSnowy(weather);
-  const candidates = OUTFITS.filter((o) => o.style === style && o.bands.includes(band));
+  const candidates = OUTFITS.filter(
+    (o) => o.style === style && o.bands.includes(band) && (tone === 'all' || o.tone === tone),
+  );
   const shuffled = seededShuffle(candidates, hashString(`${dateKey}:${style}:${band}`));
-  const sorted = rainy ? [...shuffled].sort((a, b) => Number(b.rainOk) - Number(a.rainOk)) : shuffled;
+  let sorted = rainy ? [...shuffled].sort((a, b) => Number(b.rainOk) - Number(a.rainOk)) : shuffled;
+  if (tone === 'all') {
+    // 안정 정렬이라 시드 순서·강수 순서를 유지한 채 쿨톤만 앞으로
+    sorted = [...sorted].sort((a, b) => Number(a.tone === 'warm') - Number(b.tone === 'warm'));
+    if (rainy) sorted = [...sorted].sort((a, b) => Number(b.rainOk) - Number(a.rainOk));
+  }
   return sorted.map((outfit) => ({ outfit, rainWarning: rainy && !outfit.rainOk }));
 }
 
@@ -99,7 +119,12 @@ export interface Alternates {
  * 인접 기온대(±1)의 대안 코디 (FR-12).
  * 본 추천(현재 밴드)에 이미 포함된 코디는 제외한다.
  */
-export function recommendAlternates(style: StyleId, weather: WeatherSummary, dateKey: string): Alternates {
+export function recommendAlternates(
+  style: StyleId,
+  weather: WeatherSummary,
+  dateKey: string,
+  tone: ToneFilter = 'all',
+): Alternates {
   const band = tempBand(referenceTemp(weather));
   const rainy = isRainy(weather) || isSnowy(weather);
   const idx = BAND_ORDER.indexOf(band);
@@ -107,7 +132,11 @@ export function recommendAlternates(style: StyleId, weather: WeatherSummary, dat
   const pick = (target: TempBand | undefined): Recommendation[] => {
     if (!target) return [];
     const candidates = OUTFITS.filter(
-      (o) => o.style === style && o.bands.includes(target) && !o.bands.includes(band),
+      (o) =>
+        o.style === style &&
+        o.bands.includes(target) &&
+        !o.bands.includes(band) &&
+        (tone === 'all' || o.tone === tone),
     );
     const shuffled = seededShuffle(candidates, hashString(`${dateKey}:${style}:${target}:alt`));
     const sorted = rainy ? [...shuffled].sort((a, b) => Number(b.rainOk) - Number(a.rainOk)) : shuffled;

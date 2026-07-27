@@ -1,5 +1,15 @@
 export type TempBand = 'freezing' | 'cold' | 'chilly' | 'mild' | 'warm' | 'hot';
 
+/** 시간별 예보 (오늘 0~23시) */
+export interface HourlyForecast {
+  /** 각 항목의 시각 (0~23) */
+  hours: number[];
+  temp: number[];
+  feelsLike: number[];
+  precipProb: number[];
+  weatherCode: number[];
+}
+
 export interface WeatherSummary {
   city: string;
   tempNow: number;
@@ -10,6 +20,8 @@ export interface WeatherSummary {
   precipSum: number;
   windSpeed: number;
   weatherCode: number;
+  /** 하루 전체 시간 흐름 (FR-17) — 구버전 캐시 등으로 없을 수 있음 */
+  hourly?: HourlyForecast;
 }
 
 export type StyleId = 'oldmoney' | 'casual' | 'formal' | 'minimal';
@@ -22,9 +34,15 @@ export interface OutfitItems {
   acc?: string;
 }
 
+/** 코디 색 톤 — 쿨톤 위주 서비스지만 웜톤도 병행 제공 (FR-14/15) */
+export type Tone = 'cool' | 'warm';
+
+export type ToneFilter = 'all' | Tone;
+
 export interface Outfit {
   id: string;
   style: StyleId;
+  tone: Tone;
   bands: TempBand[];
   name: string;
   items: OutfitItems;

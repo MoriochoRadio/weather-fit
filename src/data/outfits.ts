@@ -10,16 +10,17 @@ export const STYLE_LABELS: Record<StyleId, string> = {
 export const STYLE_ORDER: StyleId[] = ['oldmoney', 'casual', 'formal', 'minimal'];
 
 /**
- * 코디 데이터 (FR-14: 쿨톤 원칙)
- * - 베이스: 네이비 · 차콜 · 그레이 · 화이트 · 블랙
- * - 포인트: 코디당 한 곳 (아이스블루·페일블루 등 차가운 계열, 또는 소재·실루엣)
- * - 강렬한 원색·웜톤 주조색·화려한 패턴 금지
+ * 코디 데이터 (FR-14/15: 쿨톤 위주 + 웜톤 병행)
+ * - tone 'cool' (기본): 네이비 · 차콜 · 그레이 · 화이트 · 블랙 베이스
+ * - tone 'warm' (선택지): 캐멀 · 브라운 · 버건디 · 베이지 등 차분한 웜톤
+ * - 공통: 강렬한 원색·화려한 패턴 금지, 코디당 조용한 포인트 한 곳
  */
 export const OUTFITS: Outfit[] = [
   // ───────────────────────── 올드머니 ─────────────────────────
   {
     id: 'om-01',
     style: 'oldmoney',
+    tone: 'cool',
     bands: ['freezing', 'cold'],
     name: '차콜 캐시미어 코트 클래식',
     items: {
@@ -37,6 +38,7 @@ export const OUTFITS: Outfit[] = [
   {
     id: 'om-02',
     style: 'oldmoney',
+    tone: 'cool',
     bands: ['freezing'],
     name: '네이비 더블 코트 포멀 레이어',
     items: {
@@ -54,6 +56,7 @@ export const OUTFITS: Outfit[] = [
   {
     id: 'om-03',
     style: 'oldmoney',
+    tone: 'cool',
     bands: ['cold', 'chilly'],
     name: '그레이 발마칸 위켄드',
     items: {
@@ -71,6 +74,7 @@ export const OUTFITS: Outfit[] = [
   {
     id: 'om-04',
     style: 'oldmoney',
+    tone: 'cool',
     bands: ['chilly'],
     name: '헤링본 자켓 컨트리',
     items: {
@@ -88,6 +92,7 @@ export const OUTFITS: Outfit[] = [
   {
     id: 'om-05',
     style: 'oldmoney',
+    tone: 'cool',
     bands: ['chilly', 'mild'],
     name: '숄더 니트 프레피',
     items: {
@@ -104,6 +109,7 @@ export const OUTFITS: Outfit[] = [
   {
     id: 'om-06',
     style: 'oldmoney',
+    tone: 'cool',
     bands: ['mild'],
     name: '네이비 블레이저 스탠다드',
     items: {
@@ -121,6 +127,7 @@ export const OUTFITS: Outfit[] = [
   {
     id: 'om-07',
     style: 'oldmoney',
+    tone: 'cool',
     bands: ['mild', 'warm'],
     name: '니트 폴로 리비에라',
     items: {
@@ -137,6 +144,7 @@ export const OUTFITS: Outfit[] = [
   {
     id: 'om-08',
     style: 'oldmoney',
+    tone: 'cool',
     bands: ['warm'],
     name: '린넨 셔츠 리조트',
     items: {
@@ -153,6 +161,7 @@ export const OUTFITS: Outfit[] = [
   {
     id: 'om-09',
     style: 'oldmoney',
+    tone: 'cool',
     bands: ['warm', 'hot'],
     name: '네이비 피케 폴로 컨트리클럽',
     items: {
@@ -169,6 +178,7 @@ export const OUTFITS: Outfit[] = [
   {
     id: 'om-10',
     style: 'oldmoney',
+    tone: 'cool',
     bands: ['hot'],
     name: '페일블루 오픈카라',
     items: {
@@ -187,6 +197,7 @@ export const OUTFITS: Outfit[] = [
   {
     id: 'ca-01',
     style: 'casual',
+    tone: 'cool',
     bands: ['freezing', 'cold'],
     name: '숏패딩 클린 레이어',
     items: {
@@ -204,6 +215,7 @@ export const OUTFITS: Outfit[] = [
   {
     id: 'ca-02',
     style: 'casual',
+    tone: 'cool',
     bands: ['freezing'],
     name: '구스다운 + 터틀넥',
     items: {
@@ -221,6 +233,7 @@ export const OUTFITS: Outfit[] = [
   {
     id: 'ca-03',
     style: 'casual',
+    tone: 'cool',
     bands: ['cold'],
     name: '울 블루종 캠퍼스',
     items: {
@@ -238,6 +251,7 @@ export const OUTFITS: Outfit[] = [
   {
     id: 'ca-04',
     style: 'casual',
+    tone: 'cool',
     bands: ['cold', 'chilly'],
     name: '차콜 코듀로이 셔켓 레이어',
     items: {
@@ -255,6 +269,7 @@ export const OUTFITS: Outfit[] = [
   {
     id: 'ca-05',
     style: 'casual',
+    tone: 'cool',
     bands: ['chilly'],
     name: '데님 자켓 베이식',
     items: {
@@ -272,6 +287,7 @@ export const OUTFITS: Outfit[] = [
   {
     id: 'ca-06',
     style: 'casual',
+    tone: 'cool',
     bands: ['chilly', 'mild'],
     name: '가디건 소프트 룩',
     items: {
@@ -289,6 +305,7 @@ export const OUTFITS: Outfit[] = [
   {
     id: 'ca-07',
     style: 'casual',
+    tone: 'cool',
     bands: ['mild'],
     name: '옥스포드 셔츠 오버레이',
     items: {
@@ -306,6 +323,7 @@ export const OUTFITS: Outfit[] = [
   {
     id: 'ca-08',
     style: 'casual',
+    tone: 'cool',
     bands: ['mild', 'warm'],
     name: '스트라이프 티 프렌치',
     items: {
@@ -322,6 +340,7 @@ export const OUTFITS: Outfit[] = [
   {
     id: 'ca-09',
     style: 'casual',
+    tone: 'cool',
     bands: ['warm'],
     name: '헤비코튼 티 스탠다드',
     items: {
@@ -338,6 +357,7 @@ export const OUTFITS: Outfit[] = [
   {
     id: 'ca-10',
     style: 'casual',
+    tone: 'cool',
     bands: ['warm', 'hot'],
     name: '페일블루 오픈 반팔',
     items: {
@@ -354,6 +374,7 @@ export const OUTFITS: Outfit[] = [
   {
     id: 'ca-11',
     style: 'casual',
+    tone: 'cool',
     bands: ['hot'],
     name: '시어서커 반팔 셋업 무드',
     items: {
@@ -372,6 +393,7 @@ export const OUTFITS: Outfit[] = [
   {
     id: 'fo-01',
     style: 'formal',
+    tone: 'cool',
     bands: ['freezing', 'cold'],
     name: '차콜 체스터필드 수트',
     items: {
@@ -389,6 +411,7 @@ export const OUTFITS: Outfit[] = [
   {
     id: 'fo-02',
     style: 'formal',
+    tone: 'cool',
     bands: ['freezing'],
     name: '플란넬 수트 윈터 오피스',
     items: {
@@ -406,6 +429,7 @@ export const OUTFITS: Outfit[] = [
   {
     id: 'fo-03',
     style: 'formal',
+    tone: 'cool',
     bands: ['cold'],
     name: '니트 베스트 스리피스 무드',
     items: {
@@ -423,6 +447,7 @@ export const OUTFITS: Outfit[] = [
   {
     id: 'fo-04',
     style: 'formal',
+    tone: 'cool',
     bands: ['cold', 'chilly'],
     name: '그레이 트렌치 클래식',
     items: {
@@ -440,6 +465,7 @@ export const OUTFITS: Outfit[] = [
   {
     id: 'fo-05',
     style: 'formal',
+    tone: 'cool',
     bands: ['chilly'],
     name: '그레이 수트 + 터틀넥',
     items: {
@@ -456,6 +482,7 @@ export const OUTFITS: Outfit[] = [
   {
     id: 'fo-06',
     style: 'formal',
+    tone: 'cool',
     bands: ['chilly', 'mild'],
     name: '네이비 수트 노타이',
     items: {
@@ -472,6 +499,7 @@ export const OUTFITS: Outfit[] = [
   {
     id: 'fo-07',
     style: 'formal',
+    tone: 'cool',
     bands: ['mild'],
     name: '네이비 자켓 세퍼레이트',
     items: {
@@ -489,6 +517,7 @@ export const OUTFITS: Outfit[] = [
   {
     id: 'fo-08',
     style: 'formal',
+    tone: 'cool',
     bands: ['mild', 'warm'],
     name: '니트 폴로 수트',
     items: {
@@ -505,6 +534,7 @@ export const OUTFITS: Outfit[] = [
   {
     id: 'fo-09',
     style: 'formal',
+    tone: 'cool',
     bands: ['warm'],
     name: '트로피컬 울 오피스',
     items: {
@@ -521,6 +551,7 @@ export const OUTFITS: Outfit[] = [
   {
     id: 'fo-10',
     style: 'formal',
+    tone: 'cool',
     bands: ['warm', 'hot'],
     name: '페일그레이 린넨 블레이저',
     items: {
@@ -537,6 +568,7 @@ export const OUTFITS: Outfit[] = [
   {
     id: 'fo-11',
     style: 'formal',
+    tone: 'cool',
     bands: ['hot'],
     name: '반팔 셔츠 비즈니스',
     items: {
@@ -555,6 +587,7 @@ export const OUTFITS: Outfit[] = [
   {
     id: 'mi-01',
     style: 'minimal',
+    tone: 'cool',
     bands: ['freezing', 'cold'],
     name: '블랙 캐시미어 모노톤',
     items: {
@@ -572,6 +605,7 @@ export const OUTFITS: Outfit[] = [
   {
     id: 'mi-02',
     style: 'minimal',
+    tone: 'cool',
     bands: ['freezing'],
     name: '무광 다운 그레이스케일',
     items: {
@@ -589,6 +623,7 @@ export const OUTFITS: Outfit[] = [
   {
     id: 'mi-03',
     style: 'minimal',
+    tone: 'cool',
     bands: ['cold'],
     name: '울 셔켓 레이어드 그레이',
     items: {
@@ -606,6 +641,7 @@ export const OUTFITS: Outfit[] = [
   {
     id: 'mi-04',
     style: 'minimal',
+    tone: 'cool',
     bands: ['cold', 'chilly'],
     name: '크루넥 니트 투톤',
     items: {
@@ -622,6 +658,7 @@ export const OUTFITS: Outfit[] = [
   {
     id: 'mi-05',
     style: 'minimal',
+    tone: 'cool',
     bands: ['chilly'],
     name: '페일그레이 맥코트 톤온톤',
     items: {
@@ -639,6 +676,7 @@ export const OUTFITS: Outfit[] = [
   {
     id: 'mi-06',
     style: 'minimal',
+    tone: 'cool',
     bands: ['chilly', 'mild'],
     name: '라이트 자켓 그레이스케일',
     items: {
@@ -656,6 +694,7 @@ export const OUTFITS: Outfit[] = [
   {
     id: 'mi-07',
     style: 'minimal',
+    tone: 'cool',
     bands: ['mild'],
     name: '화이트 셔츠 원 포인트',
     items: {
@@ -672,6 +711,7 @@ export const OUTFITS: Outfit[] = [
   {
     id: 'mi-08',
     style: 'minimal',
+    tone: 'cool',
     bands: ['mild', 'warm'],
     name: '그레이 티 드레이프',
     items: {
@@ -688,6 +728,7 @@ export const OUTFITS: Outfit[] = [
   {
     id: 'mi-09',
     style: 'minimal',
+    tone: 'cool',
     bands: ['warm'],
     name: '페일블루 니트 서머',
     items: {
@@ -704,6 +745,7 @@ export const OUTFITS: Outfit[] = [
   {
     id: 'mi-10',
     style: 'minimal',
+    tone: 'cool',
     bands: ['warm', 'hot'],
     name: '오버핏 티 + 블랙 슬랙스',
     items: {
@@ -720,6 +762,7 @@ export const OUTFITS: Outfit[] = [
   {
     id: 'mi-11',
     style: 'minimal',
+    tone: 'cool',
     bands: ['hot'],
     name: '린넨 셋업 폭염 대응',
     items: {
@@ -732,5 +775,219 @@ export const OUTFITS: Outfit[] = [
     point: '같은 원단의 상하 셋업 — 가장 시원한 정장 대체안',
     rainOk: true,
     palette: ['#c8ccd2', '#e7eaee', '#b9bdc4', '#8b8f98'],
+  },
+
+  // ───────────────────────── 웜톤 (선택지) ─────────────────────────
+  {
+    id: 'wm-om-01',
+    style: 'oldmoney',
+    tone: 'warm',
+    bands: ['freezing', 'cold'],
+    name: '캐멀 코트 클래식',
+    items: {
+      outer: '캐멀 캐시미어 블렌드 코트',
+      top: '아이보리 터틀넥 니트',
+      bottom: '차콜 울 슬랙스',
+      shoes: '다크브라운 레더 부츠',
+      acc: '브라운 가죽 장갑',
+    },
+    tip: '캐멀·아이보리·차콜 세 톤이면 충분합니다. 니트는 몸에 붙지 않는 미드게이지가 우아해 보여요.',
+    point: '겨울 거리에서 가장 부드러워 보이는 캐멀 한 벌 — 색이 곧 온기',
+    rainOk: true,
+    palette: ['#b5915f', '#efe9dc', '#3c3f45', '#4a3527'],
+  },
+  {
+    id: 'wm-om-02',
+    style: 'oldmoney',
+    tone: 'warm',
+    bands: ['cold', 'chilly'],
+    name: '버건디 니트 헤리티지',
+    items: {
+      outer: '차콜 싱글 코트(선택)',
+      top: '버건디 크루넥 니트 + 화이트 셔츠',
+      bottom: '그레이 플란넬 팬츠',
+      shoes: '다크브라운 페니 로퍼',
+      acc: '가죽 스트랩 시계',
+    },
+    tip: '버건디는 무채색 사이에 한 벌만 넣어야 깊어 보입니다. 셔츠 카라로 목선을 정리하세요.',
+    point: '와인빛 버건디 니트 — 어두운 계절의 조용한 색 한 잔',
+    rainOk: true,
+    palette: ['#6d2734', '#f4f6f7', '#8b8f98', '#4a3527'],
+  },
+  {
+    id: 'wm-om-03',
+    style: 'oldmoney',
+    tone: 'warm',
+    bands: ['chilly'],
+    name: '브라운 트위드 컨트리',
+    items: {
+      outer: '브라운 헤링본 트위드 자켓',
+      top: '크림 옥스포드 셔츠 + 니트 베스트',
+      bottom: '다크브라운 코듀로이 팬츠',
+      shoes: '브라운 태슬 로퍼',
+      acc: '가죽 벨트(신발과 동일 톤)',
+    },
+    tip: '질감(트위드·코듀로이·니트)을 세 가지 겹치는 게 이 룩의 전부입니다. 색은 브라운 계열로 통일하세요.',
+    point: '트위드의 거친 결 — 영국 시골집 서재 같은 질감',
+    rainOk: false,
+    palette: ['#6b5138', '#f1ead8', '#3f2f22', '#8a7a5c'],
+  },
+  {
+    id: 'wm-om-04',
+    style: 'oldmoney',
+    tone: 'warm',
+    bands: ['mild', 'warm'],
+    name: '크림 니트 폴로 리비에라',
+    items: {
+      top: '크림 니트 폴로',
+      bottom: '올리브 플리츠 슬랙스',
+      shoes: '브라운 스웨이드 로퍼',
+      acc: '빈티지 골드 시계',
+    },
+    tip: '니트 폴로는 상체 실루엣을 잡아주는 사이즈로. 하의는 허리 위로 올려 입어야 비율이 삽니다.',
+    point: '손목의 골드 시계 — 크림·올리브 사이에서 은은하게 빛나는 지점',
+    rainOk: false,
+    palette: ['#efe6cf', '#5a5f46', '#7c5c40', '#b39359'],
+  },
+  {
+    id: 'wm-ca-01',
+    style: 'casual',
+    tone: 'warm',
+    bands: ['cold', 'chilly'],
+    name: '브라운 코듀로이 셔켓',
+    items: {
+      outer: '브라운 코듀로이 셔켓',
+      top: '크림 스웻셔츠',
+      bottom: '올리브 치노',
+      shoes: '브라운 스웨이드 데저트 부츠',
+      acc: '베이지 볼캡',
+    },
+    tip: '셔켓은 단추를 열고 스웻셔츠를 보여주는 게 공식입니다. 전체를 어스톤으로 묶으면 실패가 없어요.',
+    point: '가을 낙엽 같은 어스톤 배색 — 색 셋이 한 계열이라 조용합니다',
+    rainOk: false,
+    palette: ['#6b5138', '#efe9dc', '#5a5f46', '#8a7a5c'],
+  },
+  {
+    id: 'wm-ca-02',
+    style: 'casual',
+    tone: 'warm',
+    bands: ['chilly', 'mild'],
+    name: '베이지 가디건 소프트',
+    items: {
+      outer: '베이지 미드게이지 가디건',
+      top: '화이트 헤비코튼 티',
+      bottom: '브라운 와이드 치노',
+      shoes: '화이트 레더 스니커',
+      acc: '가죽 스트랩 시계',
+    },
+    tip: '가디건은 첫 단추 하나만 잠그거나 다 열어 두세요. 티셔츠는 목이 늘어나지 않은 것이어야 단정합니다.',
+    point: '베이지 니트의 포근한 볼륨 — 색보다 부드러움이 포인트',
+    rainOk: false,
+    palette: ['#d8c9a3', '#f6f8f9', '#6b5138', '#8a7a5c'],
+  },
+  {
+    id: 'wm-ca-03',
+    style: 'casual',
+    tone: 'warm',
+    bands: ['warm', 'hot'],
+    name: '에크루 린넨 셋업',
+    items: {
+      top: '에크루 린넨 반팔 셔츠',
+      bottom: '동일 톤 린넨 팬츠(발목 기장)',
+      shoes: '브라운 레더 샌들',
+      acc: '라탄 느낌 사코슈(선택)',
+    },
+    tip: '같은 톤 린넨 상하의는 휴양지가 아니어도 잘 어울립니다. 속에 흰 티를 받치면 비침 걱정이 없어요.',
+    point: '표백하지 않은 에크루의 자연스러운 색 — 여름 웜톤의 정석',
+    rainOk: true,
+    palette: ['#e8dfc9', '#f1ead8', '#7c5c40', '#c9b48c'],
+  },
+  {
+    id: 'wm-fo-01',
+    style: 'formal',
+    tone: 'warm',
+    bands: ['freezing', 'cold'],
+    name: '캐멀 코트 오피스',
+    items: {
+      outer: '캐멀 싱글 코트',
+      top: '차콜 수트 + 화이트 셔츠 + 네이비 니트 베스트',
+      bottom: '차콜 수트 팬츠',
+      shoes: '다크브라운 더비',
+      acc: '브라운 가죽 벨트 · 실버 타이바(타이 착용 시)',
+    },
+    tip: '어두운 수트 위 캐멀 코트는 겨울 오피스의 클래식입니다. 코트와 신발의 갈색 톤을 맞추세요.',
+    point: '무채색 수트를 감싸는 캐멀 — 딱 한 겹의 온기',
+    rainOk: true,
+    palette: ['#b5915f', '#3c3f45', '#f4f6f7', '#4a3527'],
+  },
+  {
+    id: 'wm-fo-02',
+    style: 'formal',
+    tone: 'warm',
+    bands: ['cold', 'chilly'],
+    name: '베이지 트렌치 클래식',
+    items: {
+      outer: '베이지 트렌치 코트',
+      top: '네이비 수트 + 화이트 셔츠',
+      bottom: '네이비 수트 팬츠',
+      shoes: '다크브라운 옥스포드',
+      acc: '장우산 · 가죽 벨트',
+    },
+    tip: '트렌치 벨트는 묶지 말고 뒤로 넘겨 정리하세요. 흐린 날일수록 베이지가 얼굴을 밝혀 줍니다.',
+    point: '흐린 하늘 아래 베이지 트렌치 — 클래식이 곧 포인트',
+    rainOk: true,
+    palette: ['#c9b48c', '#232f49', '#f4f6f7', '#4a3527'],
+  },
+  {
+    id: 'wm-fo-03',
+    style: 'formal',
+    tone: 'warm',
+    bands: ['mild'],
+    name: '브라운 톤 세퍼레이트',
+    items: {
+      outer: '브라운 체크 스포츠 자켓',
+      top: '아이보리 셔츠',
+      bottom: '다크브라운 울 슬랙스',
+      shoes: '브라운 스웨이드 로퍼',
+      acc: '토널 가죽 벨트',
+    },
+    tip: '상하의를 다른 원단으로 나누는 세퍼레이트는 자켓이 하의보다 밝아야 안정적입니다.',
+    point: '은은한 브라운 체크 — 가까이서만 보이는 무늬',
+    rainOk: false,
+    palette: ['#6b5138', '#f1ead8', '#3f2f22', '#8a7a5c'],
+  },
+  {
+    id: 'wm-mi-01',
+    style: 'minimal',
+    tone: 'warm',
+    bands: ['cold', 'chilly'],
+    name: '오트밀 니트 투톤',
+    items: {
+      top: '오트밀 크루넥 니트(단독)',
+      bottom: '다크브라운 와이드 슬랙스',
+      shoes: '브라운 레더 부츠',
+      acc: '토널 가죽 시계',
+    },
+    tip: '아우터 없이 니트 한 장으로 버티는 날엔 니트 게이지가 촘촘하고 도톰해야 합니다. 색은 두 가지로 끝내세요.',
+    point: '오트밀과 브라운 — 커피와 우유 같은 두 색',
+    rainOk: true,
+    palette: ['#ded6c4', '#3f2f22', '#6b5138', '#efe9dc'],
+  },
+  {
+    id: 'wm-mi-02',
+    style: 'minimal',
+    tone: 'warm',
+    bands: ['warm'],
+    name: '크림 톤온톤 서머',
+    items: {
+      top: '크림 반팔 니트',
+      bottom: '에크루 와이드 팬츠',
+      shoes: '화이트 레더 스니커',
+      acc: '토널 캔버스 토트',
+    },
+    tip: '반팔 니트는 티셔츠보다 어른스러운 여름 상의입니다. 밝은 톤온톤은 구김만 없으면 그 자체로 완성이에요.',
+    point: '크림과 에크루의 반 톤 차 — 밝은 웜톤의 톤온톤',
+    rainOk: false,
+    palette: ['#efe6cf', '#e8dfc9', '#f6f8f9', '#c9b48c'],
   },
 ];

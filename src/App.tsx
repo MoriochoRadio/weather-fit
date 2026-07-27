@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { City, StyleId, WeatherSummary } from './types';
+import type { City, StyleId, ToneFilter, WeatherSummary } from './types';
 import { DEFAULT_CITY, getCurrentPosition, loadSavedCity, saveCity } from './services/geo';
 import { fetchWeather } from './services/weather';
 import { buildAdvice, recommend, recommendAlternates } from './engine/recommend';
 import { STYLE_LABELS } from './data/outfits';
 import WeatherCard from './components/WeatherCard';
+import DayBrief from './components/DayBrief';
 import AdviceList from './components/AdviceList';
 import StyleTabs from './components/StyleTabs';
 import OutfitCard from './components/OutfitCard';
@@ -28,6 +29,7 @@ export default function App() {
   const [weather, setWeather] = useState<WeatherSummary | null>(null);
   const [state, setState] = useState<LoadState>('loading');
   const [style, setStyle] = useState<StyleId>('oldmoney');
+  const [tone, setTone] = useState<ToneFilter>('all');
   const [searchOpen, setSearchOpen] = useState(false);
   const [showAlternates, setShowAlternates] = useState(false);
 
@@ -62,10 +64,13 @@ export default function App() {
   };
 
   const dateKey = todayKey();
-  const recs = useMemo(() => (weather ? recommend(style, weather, dateKey) : []), [style, weather, dateKey]);
+  const recs = useMemo(
+    () => (weather ? recommend(style, weather, dateKey, tone) : []),
+    [style, weather, dateKey, tone],
+  );
   const alternates = useMemo(
-    () => (weather ? recommendAlternates(style, weather, dateKey) : { cooler: [], warmer: [] }),
-    [style, weather, dateKey],
+    () => (weather ? recommendAlternates(style, weather, dateKey, tone) : { cooler: [], warmer: [] }),
+    [style, weather, dateKey, tone],
   );
   const advice = useMemo(() => (weather ? buildAdvice(weather) : []), [weather]);
   const hasAlternates = alternates.cooler.length > 0 || alternates.warmer.length > 0;
@@ -108,12 +113,34 @@ export default function App() {
         {state === 'ready' && weather && (
           <>
             <WeatherCard weather={weather} />
+            <DayBrief weather={weather} />
             <AdviceList advice={advice} />
 
             <section aria-label="코디 추천">
               <div className="section-head">
                 <h2>오늘의 코디</h2>
-                <StyleTabs active={style} onChange={setStyle} />
+                <div className="filters">
+                  <StyleTabs active={style} onChange={setStyle} />
+                  <div className="tabs tone-tabs" role="group" aria-label="톤 필터">
+                    {(
+                      [
+                        ['all', '전체'],
+                        ['cool', '쿨톤'],
+                        ['warm', '웜톤'],
+                      ] as Array<[ToneFilter, string]>
+                    ).map(([id, label]) => (
+                      <button
+                        key={id}
+                        type="button"
+                        aria-pressed={tone === id}
+                        className={tone === id ? 'tab active' : 'tab'}
+                        onClick={() => setTone(id)}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
               {recs.length > 0 ? (
                 <div className="outfit-list">
@@ -122,7 +149,11 @@ export default function App() {
                   ))}
                 </div>
               ) : (
-                <p className="status">{STYLE_LABELS[style]} 스타일에서 오늘 기온에 맞는 코디를 찾지 못했어요.</p>
+                <p className="status">
+                  {STYLE_LABELS[style]} 스타일{tone !== 'all' ? `의 ${tone === 'cool' ? '쿨톤' : '웜톤'}` : ''}에서
+                  오늘 기온에 맞는 코디를 찾지 못했어요.
+                  {tone !== 'all' && ' 톤 필터를 "전체"로 바꿔 보세요.'}
+                </p>
               )}
 
               {hasAlternates && (

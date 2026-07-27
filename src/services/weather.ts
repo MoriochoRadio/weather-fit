@@ -14,6 +14,13 @@ interface ForecastResponse {
     precipitation_sum: number[];
     weather_code: number[];
   };
+  hourly: {
+    time: string[];
+    temperature_2m: number[];
+    apparent_temperature: number[];
+    precipitation_probability: (number | null)[];
+    weather_code: number[];
+  };
 }
 
 export async function fetchWeather(latitude: number, longitude: number, cityName: string): Promise<WeatherSummary> {
@@ -25,6 +32,7 @@ export async function fetchWeather(latitude: number, longitude: number, cityName
     'daily',
     'temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,weather_code',
   );
+  url.searchParams.set('hourly', 'temperature_2m,apparent_temperature,precipitation_probability,weather_code');
   url.searchParams.set('forecast_days', '1');
   url.searchParams.set('timezone', 'auto');
 
@@ -42,5 +50,12 @@ export async function fetchWeather(latitude: number, longitude: number, cityName
     precipSum: data.daily.precipitation_sum[0] ?? 0,
     windSpeed: data.current.wind_speed_10m,
     weatherCode: data.current.weather_code,
+    hourly: {
+      hours: data.hourly.time.map((t) => new Date(t).getHours()),
+      temp: data.hourly.temperature_2m,
+      feelsLike: data.hourly.apparent_temperature,
+      precipProb: data.hourly.precipitation_probability.map((p) => p ?? 0),
+      weatherCode: data.hourly.weather_code,
+    },
   };
 }

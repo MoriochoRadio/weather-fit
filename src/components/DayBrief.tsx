@@ -1,0 +1,88 @@
+import type { WeatherSummary } from '../types';
+import { buildBriefing } from '../engine/briefing';
+
+interface Props {
+  weather: WeatherSummary;
+}
+
+const W = 240;
+const H = 56;
+const PAD_X = 4;
+const PAD_TOP = 14;
+const PAD_BOTTOM = 12;
+
+/**
+ * 24시간 기온 스파크라인 + 강수 시간대 밴드 (FR-17).
+ * 단일 시리즈라 범례 없음, 수치는 텍스트 토큰으로 표기.
+ * 강수확률은 별도 축 대신 배경 밴드로 표시해 이중 축을 피한다.
+ */
+export default function DayBrief({ weather }: Props) {
+  const brief = buildBriefing(weather);
+  const h = weather.hourly;
+  if (!brief || !h || h.temp.length < 2) return null;
+
+  const n = h.temp.length;
+  const min = Math.min(...h.temp);
+  const max = Math.max(...h.temp);
+  const span = Math.max(max - min, 1);
+  const x = (i: number) => PAD_X + (i / (n - 1)) * (W - PAD_X * 2);
+  const y = (t: number) => PAD_TOP + (1 - (t - min) / span) * (H - PAD_TOP - PAD_BOTTOM);
+  const path = h.temp.map((t, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(1)},${y(t).toFixed(1)}`).join(' ');
+
+  const minIdx = h.temp.indexOf(min);
+  const maxIdx = h.temp.indexOf(max);
+  const nowHour = new Date().getHours();
+  const nowIdx = h.hours.indexOf(nowHour);
+
+  return (
+    <section className="daybrief" aria-label="오늘 하루 날씨 흐름">
+      <div className="daybrief-top">
+        <dl className="daybrief-segments">
+          {brief.segments.map((s) => (
+            <div key={s.label}>
+              <dt>{s.label}</dt>
+              <dd>{s.temp === null ? '–' : `${Math.round(s.temp)}°`}</dd>
+            </div>
+          ))}
+        </dl>
+        <svg
+          className="sparkline"
+          viewBox={`0 0 ${W} ${H}`}
+          role="img"
+          aria-label={`0시부터 23시까지 기온 흐름, 최저 ${Math.round(min)}도 최고 ${Math.round(max)}도`}
+        >
+          {brief.rainWindows.map((r) => {
+            const i0 = h.hours.indexOf(r.startHour);
+            const i1 = h.hours.indexOf(r.endHour - 1);
+            if (i0 === -1 || i1 === -1) return null;
+            return (
+              <rect
+                key={r.startHour}
+                className="spark-rain"
+                x={x(i0)}
+                y={0}
+                width={Math.max(x(i1) - x(i0), 2)}
+                height={H}
+              />
+            );
+          })}
+          <path className="spark-line" d={path} />
+          {nowIdx >= 0 && <circle className="spark-now" cx={x(nowIdx)} cy={y(h.temp[nowIdx])} r={3} />}
+          <text className="spark-label" x={x(maxIdx)} y={y(max) - 4} textAnchor="middle">
+            {Math.round(max)}°
+          </text>
+          <text className="spark-label" x={x(minIdx)} y={y(min) + 10} textAnchor="middle">
+            {Math.round(min)}°
+          </text>
+        </svg>
+      </div>
+      {brief.lines.length > 0 && (
+        <ul className="daybrief-lines">
+          {brief.lines.map((line) => (
+            <li key={line}>{line}</li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}

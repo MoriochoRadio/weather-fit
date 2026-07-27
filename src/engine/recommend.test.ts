@@ -73,18 +73,39 @@ describe('데이터 커버리지 (FR-05)', () => {
     }
   });
 
-  it('팔레트가 쿨톤 원칙을 지킨다 — 붉은기가 주조인 색 금지 (FR-14)', () => {
+  it('팔레트 톤 원칙 (FR-14) — 쿨톤은 붉은기 금지, 웜톤 포함 전체는 고채도 원색 금지', () => {
     for (const o of OUTFITS) {
       for (const hex of o.palette) {
         const r = parseInt(hex.slice(1, 3), 16);
         const g = parseInt(hex.slice(3, 5), 16);
         const b = parseInt(hex.slice(5, 7), 16);
-        // 빨강이 파랑보다 뚜렷하게 큰 색(웜톤 주조)은 금지
-        expect(r - b, `${o.id} ${hex}`).toBeLessThanOrEqual(10);
-        // 고채도 원색 금지: 최대-최소 채널 차가 과도하면 강렬한 색
-        expect(Math.max(r, g, b) - Math.min(r, g, b), `${o.id} ${hex}`).toBeLessThanOrEqual(60);
+        if (o.tone === 'cool') {
+          // 쿨톤: 빨강이 파랑보다 뚜렷하게 큰 색(웜톤 주조) 금지
+          expect(r - b, `${o.id} ${hex}`).toBeLessThanOrEqual(10);
+          expect(Math.max(r, g, b) - Math.min(r, g, b), `${o.id} ${hex}`).toBeLessThanOrEqual(60);
+        } else {
+          // 웜톤: 차분한 범위 내에서 허용, 강렬한 원색만 금지
+          expect(r - b, `${o.id} ${hex}`).toBeLessThanOrEqual(100);
+          expect(Math.max(r, g, b) - Math.min(r, g, b), `${o.id} ${hex}`).toBeLessThanOrEqual(100);
+        }
       }
     }
+  });
+
+  it('쿨톤만으로도 모든 스타일×기온대에 코디가 2개 이상 (FR-15 기본 노출 보장)', () => {
+    const BANDS: TempBand[] = ['freezing', 'cold', 'chilly', 'mild', 'warm', 'hot'];
+    for (const style of STYLE_ORDER) {
+      for (const band of BANDS) {
+        const count = OUTFITS.filter(
+          (o) => o.style === style && o.tone === 'cool' && o.bands.includes(band),
+        ).length;
+        expect(count, `${style} × ${band}`).toBeGreaterThanOrEqual(2);
+      }
+    }
+  });
+
+  it('웜톤 코디도 존재한다 (FR-14 개정)', () => {
+    expect(OUTFITS.filter((o) => o.tone === 'warm').length).toBeGreaterThanOrEqual(10);
   });
 });
 
@@ -128,6 +149,32 @@ describe('recommend', () => {
       (d) => recommend('casual', w, d).map((r) => r.outfit.id).join() !== base.join(),
     );
     expect(anyDifferent).toBe(true);
+  });
+});
+
+describe('톤 필터 (FR-15)', () => {
+  const w = () => makeWeather({ tempMax: 4, feelsLike: 2, tempMin: -1 }); // ref 3 → cold
+
+  it("'warm' 필터는 웜톤 코디만 반환한다", () => {
+    const recs = recommend('oldmoney', w(), '2026-07-27', 'warm');
+    expect(recs.length).toBeGreaterThan(0);
+    for (const r of recs) expect(r.outfit.tone).toBe('warm');
+  });
+
+  it("'cool' 필터는 쿨톤 코디만 반환한다", () => {
+    const recs = recommend('oldmoney', w(), '2026-07-27', 'cool');
+    expect(recs.length).toBeGreaterThanOrEqual(2);
+    for (const r of recs) expect(r.outfit.tone).toBe('cool');
+  });
+
+  it("'all'(기본)은 둘 다 포함하되 쿨톤이 먼저 온다", () => {
+    const recs = recommend('oldmoney', w(), '2026-07-27');
+    const tones = recs.map((r) => r.outfit.tone);
+    expect(tones).toContain('cool');
+    expect(tones).toContain('warm');
+    const firstWarm = tones.indexOf('warm');
+    const lastCool = tones.lastIndexOf('cool');
+    expect(firstWarm).toBeGreaterThan(lastCool);
   });
 });
 
