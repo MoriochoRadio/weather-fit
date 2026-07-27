@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildAdvice, isRainy, recommend, referenceTemp, tempBand } from './recommend';
+import { buildAdvice, isRainy, recommend, recommendAlternates, referenceTemp, tempBand } from './recommend';
 import { OUTFITS, STYLE_ORDER } from '../data/outfits';
 import type { TempBand, WeatherSummary } from '../types';
 
@@ -108,6 +108,43 @@ describe('recommend', () => {
       (d) => recommend('casual', w, d).map((r) => r.outfit.id).join() !== base.join(),
     );
     expect(anyDifferent).toBe(true);
+  });
+});
+
+describe('recommendAlternates (FR-12)', () => {
+  it('인접 기온대 코디를 반환하고, 본 추천과 겹치지 않는다', () => {
+    const w = makeWeather({ tempMax: 20, feelsLike: 20 }); // ref 20 → mild
+    const main = recommend('oldmoney', w, '2026-07-27').map((r) => r.outfit.id);
+    const { cooler, warmer } = recommendAlternates('oldmoney', w, '2026-07-27');
+
+    for (const r of [...cooler, ...warmer]) {
+      expect(main).not.toContain(r.outfit.id);
+      expect(r.outfit.bands).not.toContain('mild');
+    }
+    for (const r of cooler) expect(r.outfit.bands).toContain('warm');
+    for (const r of warmer) expect(r.outfit.bands).toContain('chilly');
+    expect(cooler.length + warmer.length).toBeGreaterThan(0);
+  });
+
+  it('최저 기온대(freezing)에서는 추운 쪽 대안이 없다', () => {
+    const w = makeWeather({ tempMax: -5, feelsLike: -9, tempMin: -12 });
+    const { cooler, warmer } = recommendAlternates('casual', w, '2026-07-27');
+    expect(warmer).toEqual([]);
+    for (const r of cooler) expect(r.outfit.bands).toContain('cold');
+  });
+
+  it('최고 기온대(hot)에서는 더운 쪽 대안이 없다', () => {
+    const w = makeWeather({ tempMax: 33, feelsLike: 33, tempMin: 26 });
+    const { cooler } = recommendAlternates('formal', w, '2026-07-27');
+    expect(cooler).toEqual([]);
+  });
+
+  it('같은 날짜면 대안 순서도 동일하다', () => {
+    const w = makeWeather();
+    const a = recommendAlternates('minimal', w, '2026-07-27');
+    const b = recommendAlternates('minimal', w, '2026-07-27');
+    expect(a.cooler.map((r) => r.outfit.id)).toEqual(b.cooler.map((r) => r.outfit.id));
+    expect(a.warmer.map((r) => r.outfit.id)).toEqual(b.warmer.map((r) => r.outfit.id));
   });
 });
 

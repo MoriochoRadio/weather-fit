@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { City, StyleId, WeatherSummary } from './types';
 import { DEFAULT_CITY, getCurrentPosition, loadSavedCity, saveCity } from './services/geo';
 import { fetchWeather } from './services/weather';
-import { buildAdvice, recommend } from './engine/recommend';
+import { buildAdvice, recommend, recommendAlternates } from './engine/recommend';
 import { STYLE_LABELS } from './data/outfits';
 import WeatherCard from './components/WeatherCard';
 import AdviceList from './components/AdviceList';
@@ -29,6 +29,7 @@ export default function App() {
   const [state, setState] = useState<LoadState>('loading');
   const [style, setStyle] = useState<StyleId>('oldmoney');
   const [searchOpen, setSearchOpen] = useState(false);
+  const [showAlternates, setShowAlternates] = useState(false);
 
   const load = useCallback(async (target: City) => {
     setState('loading');
@@ -62,7 +63,12 @@ export default function App() {
 
   const dateKey = todayKey();
   const recs = useMemo(() => (weather ? recommend(style, weather, dateKey) : []), [style, weather, dateKey]);
+  const alternates = useMemo(
+    () => (weather ? recommendAlternates(style, weather, dateKey) : { cooler: [], warmer: [] }),
+    [style, weather, dateKey],
+  );
   const advice = useMemo(() => (weather ? buildAdvice(weather) : []), [weather]);
+  const hasAlternates = alternates.cooler.length > 0 || alternates.warmer.length > 0;
 
   return (
     <div className="page">
@@ -113,6 +119,48 @@ export default function App() {
                 </div>
               ) : (
                 <p className="status">{STYLE_LABELS[style]} 스타일에서 오늘 기온에 맞는 코디를 찾지 못했어요.</p>
+              )}
+
+              {hasAlternates && (
+                <div className="alternates">
+                  <button
+                    type="button"
+                    className="text-btn"
+                    aria-expanded={showAlternates}
+                    onClick={() => setShowAlternates((v) => !v)}
+                  >
+                    {showAlternates ? '대안 코디 접기' : '대안 코디 더 보기'}
+                  </button>
+                  {showAlternates && (
+                    <>
+                      {alternates.cooler.length > 0 && (
+                        <>
+                          <h3 className="alt-title">더 시원하게 입고 싶다면</h3>
+                          <div className="outfit-list">
+                            {alternates.cooler.map((rec, i) => (
+                              <OutfitCard key={rec.outfit.id} rec={rec} index={i} prefix="ALT" />
+                            ))}
+                          </div>
+                        </>
+                      )}
+                      {alternates.warmer.length > 0 && (
+                        <>
+                          <h3 className="alt-title">쌀쌀하게 느껴진다면</h3>
+                          <div className="outfit-list">
+                            {alternates.warmer.map((rec, i) => (
+                              <OutfitCard
+                                key={rec.outfit.id}
+                                rec={rec}
+                                index={alternates.cooler.length + i}
+                                prefix="ALT"
+                              />
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </>
+                  )}
+                </div>
               )}
             </section>
           </>

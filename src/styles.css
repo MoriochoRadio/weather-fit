@@ -435,6 +435,77 @@ button {
   line-height: 1.65;
 }
 
+/* ── 용어 쉽게 풀이 ── */
+.glossary {
+  margin-top: 12px;
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+
+.glossary-toggle {
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  letter-spacing: 0.03em;
+  color: var(--green);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.glossary-list {
+  margin: 10px 0 0;
+}
+
+.glossary-list div {
+  padding: 6px 0;
+  border-bottom: 1px dotted var(--line);
+}
+
+.glossary-list div:last-child {
+  border-bottom: none;
+}
+
+.glossary-list dt {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--green);
+}
+
+.glossary-list dd {
+  margin: 2px 0 0;
+  font-size: 12.5px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.glossary-sub {
+  display: block;
+  margin-top: 2px;
+  color: var(--ink);
+  opacity: 0.85;
+}
+
+.glossary-sub::before {
+  content: '↳ ';
+  color: var(--muted);
+}
+
+/* ── 대안 코디 ── */
+.alternates {
+  margin-top: 18px;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+
+.alt-title {
+  font-size: 14px;
+  margin: 16px 0 10px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
 /* ── 상태 · 푸터 ── */
 .status {
   color: var(--muted);

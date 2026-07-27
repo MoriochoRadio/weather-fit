@@ -1,8 +1,12 @@
+import { useMemo, useState } from 'react';
 import type { Recommendation } from '../engine/recommend';
+import { findGlossary } from '../data/glossary';
 
 interface Props {
   rec: Recommendation;
   index: number;
+  /** 카드 번호 접두어 — 본 추천은 LOOK, 대안 코디는 ALT */
+  prefix?: string;
 }
 
 const ITEM_LABELS: Array<[keyof Recommendation['outfit']['items'], string]> = [
@@ -13,12 +17,17 @@ const ITEM_LABELS: Array<[keyof Recommendation['outfit']['items'], string]> = [
   ['acc', '액세서리'],
 ];
 
-export default function OutfitCard({ rec, index }: Props) {
+export default function OutfitCard({ rec, index, prefix = 'LOOK' }: Props) {
   const { outfit, rainWarning } = rec;
+  const [showGlossary, setShowGlossary] = useState(false);
+  const glossary = useMemo(() => findGlossary(outfit.items), [outfit]);
+
   return (
     <article className="outfit">
       <header className="outfit-head">
-        <span className="outfit-no">LOOK {String(index + 1).padStart(2, '0')}</span>
+        <span className="outfit-no">
+          {prefix} {String(index + 1).padStart(2, '0')}
+        </span>
         {rainWarning && <span className="outfit-warn">우천 주의 소재</span>}
       </header>
       <h3 className="outfit-name">{outfit.name}</h3>
@@ -40,6 +49,31 @@ export default function OutfitCard({ rec, index }: Props) {
         })}
       </dl>
       <p className="outfit-tip">{outfit.tip}</p>
+      {glossary.length > 0 && (
+        <div className="glossary">
+          <button
+            type="button"
+            className="glossary-toggle"
+            aria-expanded={showGlossary}
+            onClick={() => setShowGlossary((v) => !v)}
+          >
+            {showGlossary ? '풀이 접기' : `쉽게 풀이 · 대체 아이템 (${glossary.length})`}
+          </button>
+          {showGlossary && (
+            <dl className="glossary-list">
+              {glossary.map((g) => (
+                <div key={g.term}>
+                  <dt>{g.term}</dt>
+                  <dd>
+                    {g.meaning}
+                    <span className="glossary-sub">없으면: {g.sub}</span>
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          )}
+        </div>
+      )}
     </article>
   );
 }
