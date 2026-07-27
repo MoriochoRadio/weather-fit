@@ -8,7 +8,7 @@ import WeatherCard from './components/WeatherCard';
 import AdviceList from './components/AdviceList';
 import StyleTabs from './components/StyleTabs';
 import OutfitCard from './components/OutfitCard';
-import CitySearch from './components/CitySearch';
+import RegionPicker from './components/RegionPicker';
 
 function todayKey(): string {
   const d = new Date();
@@ -77,7 +77,7 @@ export default function App() {
           <h1 className="brand">WeatherFit</h1>
           <div className="masthead-actions">
             <button type="button" className="text-btn" onClick={() => setSearchOpen((v) => !v)}>
-              도시 변경
+              지역 변경
             </button>
             <button type="button" className="text-btn" onClick={() => city && load(city)} disabled={!city}>
               새로고침
@@ -85,14 +85,18 @@ export default function App() {
           </div>
         </div>
         <p className="dateline">
-          {formatDate()} · {city?.name ?? '위치 확인 중'}
+          {formatDate()} · {city ? `${city.name}${city.region && city.region !== city.name ? ` (${city.region})` : ''}` : '위치 확인 중'}
         </p>
       </header>
 
-      <CitySearch open={searchOpen} onSelect={handleSelectCity} onClose={() => setSearchOpen(false)} />
+      <RegionPicker open={searchOpen} current={city} onSelect={handleSelectCity} onClose={() => setSearchOpen(false)} />
 
       <main>
-        {state === 'loading' && <p className="status">오늘 날씨를 불러오는 중…</p>}
+        {state === 'loading' && (
+          <p className="status loading" role="status">
+            오늘 날씨를 불러오는 중…
+          </p>
+        )}
         {state === 'error' && (
           <div className="status error">
             <p>날씨를 불러오지 못했어요. 네트워크 연결을 확인해 주세요.</p>
@@ -132,7 +136,7 @@ export default function App() {
                     {showAlternates ? '대안 코디 접기' : '대안 코디 더 보기'}
                   </button>
                   {showAlternates && (
-                    <>
+                    <div className="alternates-body">
                       {alternates.cooler.length > 0 && (
                         <>
                           <h3 className="alt-title">더 시원하게 입고 싶다면</h3>
@@ -158,7 +162,7 @@ export default function App() {
                           </div>
                         </>
                       )}
-                    </>
+                    </div>
                   )}
                 </div>
               )}

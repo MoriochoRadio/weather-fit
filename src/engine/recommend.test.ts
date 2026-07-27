@@ -66,6 +66,26 @@ describe('데이터 커버리지 (FR-05)', () => {
       }
     }
   });
+
+  it('모든 코디에 조용한 포인트가 명시돼 있다 (FR-14)', () => {
+    for (const o of OUTFITS) {
+      expect(o.point.length, o.id).toBeGreaterThan(5);
+    }
+  });
+
+  it('팔레트가 쿨톤 원칙을 지킨다 — 붉은기가 주조인 색 금지 (FR-14)', () => {
+    for (const o of OUTFITS) {
+      for (const hex of o.palette) {
+        const r = parseInt(hex.slice(1, 3), 16);
+        const g = parseInt(hex.slice(3, 5), 16);
+        const b = parseInt(hex.slice(5, 7), 16);
+        // 빨강이 파랑보다 뚜렷하게 큰 색(웜톤 주조)은 금지
+        expect(r - b, `${o.id} ${hex}`).toBeLessThanOrEqual(10);
+        // 고채도 원색 금지: 최대-최소 채널 차가 과도하면 강렬한 색
+        expect(Math.max(r, g, b) - Math.min(r, g, b), `${o.id} ${hex}`).toBeLessThanOrEqual(60);
+      }
+    }
+  });
 });
 
 describe('recommend', () => {

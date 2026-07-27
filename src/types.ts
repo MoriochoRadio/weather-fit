@@ -29,6 +29,8 @@ export interface Outfit {
   name: string;
   items: OutfitItems;
   tip: string;
+  /** 이 코디의 "조용한 포인트" 한 줄 (FR-14) */
+  point: string;
   rainOk: boolean;
   palette: string[];
 }

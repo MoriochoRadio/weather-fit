@@ -48,6 +48,9 @@ export default function OutfitCard({ rec, index, prefix = 'LOOK' }: Props) {
           );
         })}
       </dl>
+      <p className="outfit-point">
+        <span className="outfit-point-label">포인트</span> {outfit.point}
+      </p>
       <p className="outfit-tip">{outfit.tip}</p>
       {glossary.length > 0 && (
         <div className="glossary">
