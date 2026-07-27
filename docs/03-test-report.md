@@ -121,6 +121,12 @@
 | M-23 | 웜톤 카드에 "웜톤" 태그 표시 | ✅ |
 | M-24 | 375px 가로 오버플로 없음 유지 | ✅ |
 
+### 배포 (FR-18)
+
+- GitHub 무료 플랜은 private 레포 Pages 미지원(API 422 확인) → **사용자 승인 하에 레포 public 전환** 후 GitHub Pages 배포.
+- Actions 워크플로: push 시 `npm test` → `npm run build` → Pages 배포 (테스트 실패 시 배포 중단).
+- 배포 URL https://moriochoradio.github.io/weather-fit/ 에서 HTTP 200 및 전체 기능 렌더링 확인 (M-25 ✅).
+
 ### LLM 미사용 결정 기록
 
 FR-17의 "LLM 등 활용"은 **룰 기반 브리핑 엔진**으로 구현 — LLM API는 키·서버가 필요해
