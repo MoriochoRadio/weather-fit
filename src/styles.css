@@ -522,44 +522,54 @@ button {
   letter-spacing: -0.01em;
 }
 
-.outfit-palette {
+.outfit-visual {
   display: flex;
-  gap: 6px;
-  margin-bottom: 12px;
+  gap: 14px;
+  align-items: flex-start;
+  margin-bottom: 4px;
 }
 
-.swatch {
-  width: 22px;
-  height: 22px;
-  border: 1px solid var(--line);
+.silhouette {
+  flex: 0 0 78px;
+  width: 78px;
+  height: auto;
+  align-self: stretch;
+}
+
+.sil-shape {
+  stroke: var(--line-strong);
+  stroke-width: 1.2;
 }
 
 .outfit-items {
+  flex: 1;
+  min-width: 0;
   margin: 0;
   border-top: 1px solid var(--line);
 }
 
 .outfit-items div {
   display: flex;
-  gap: 12px;
-  padding: 7px 0;
+  gap: 10px;
+  padding: 6px 0;
   border-bottom: 1px solid var(--line);
 }
 
 .outfit-items dt {
-  flex: 0 0 58px;
+  flex: 0 0 44px;
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 10.5px;
   color: var(--muted);
   padding-top: 3px;
 }
 
 .outfit-items dd {
   margin: 0;
-  font-size: 14px;
+  font-size: 13px;
+  line-height: 1.4;
   display: flex;
   align-items: flex-start;
-  gap: 7px;
+  gap: 6px;
 }
 
 .item-icon {
