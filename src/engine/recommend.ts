@@ -45,6 +45,51 @@ export function isSnowy(w: WeatherSummary): boolean {
   return SNOW_CODES.has(w.weatherCode);
 }
 
+export type AqiLevel = 'good' | 'moderate' | 'bad' | 'veryBad';
+
+const AQI_LABELS: Record<AqiLevel, string> = { good: '좋음', moderate: '보통', bad: '나쁨', veryBad: '매우나쁨' };
+const AQI_RANK: Record<AqiLevel, number> = { good: 0, moderate: 1, bad: 2, veryBad: 3 };
+
+/** 한국 대기환경기준(㎍/㎥) 구간 */
+function pm25Level(pm25: number): AqiLevel {
+  if (!Number.isFinite(pm25)) return 'good';
+  if (pm25 >= 76) return 'veryBad';
+  if (pm25 >= 36) return 'bad';
+  if (pm25 >= 16) return 'moderate';
+  return 'good';
+}
+
+function pm10Level(pm10: number): AqiLevel {
+  if (!Number.isFinite(pm10)) return 'good';
+  if (pm10 >= 151) return 'veryBad';
+  if (pm10 >= 81) return 'bad';
+  if (pm10 >= 31) return 'moderate';
+  return 'good';
+}
+
+/** PM2.5·PM10 중 더 나쁜 쪽 등급을 대표값으로 사용 */
+export function aqiLevel(pm25: number, pm10: number): AqiLevel {
+  const a = pm25Level(pm25);
+  const b = pm10Level(pm10);
+  return AQI_RANK[a] >= AQI_RANK[b] ? a : b;
+}
+
+export function aqiLabel(level: AqiLevel): string {
+  return AQI_LABELS[level];
+}
+
+export type UvLevel = 'low' | 'moderate' | 'high' | 'veryHigh' | 'extreme';
+
+/** WHO 자외선지수 구간 */
+export function uvLevel(uv: number): UvLevel {
+  if (!Number.isFinite(uv)) return 'low';
+  if (uv >= 11) return 'extreme';
+  if (uv >= 8) return 'veryHigh';
+  if (uv >= 6) return 'high';
+  if (uv >= 3) return 'moderate';
+  return 'low';
+}
+
 /** 같은 날짜에는 항상 같은 순서가 나오도록 날짜 기반 시드 셔플 */
 function mulberry32(seed: number): () => number {
   let a = seed >>> 0;
@@ -172,6 +217,22 @@ export function buildAdvice(w: WeatherSummary): Advice[] {
   }
   if (w.windSpeed >= 30) {
     advice.push({ id: 'wind', text: `바람 ${Math.round(w.windSpeed)}km/h — 챙 모자나 가벼운 겉옷은 날릴 수 있어요`, emphasis: false });
+  }
+  if (w.airQuality) {
+    const level = aqiLevel(w.airQuality.pm25, w.airQuality.pm10);
+    if (level === 'veryBad') {
+      advice.push({ id: 'aqi', text: '미세먼지 매우 나쁨 — 마스크를 챙기고, 밝은 색 겉옷은 세탁 부담을 고려하세요', emphasis: true });
+    } else if (level === 'bad') {
+      advice.push({ id: 'aqi', text: '미세먼지 나쁨 — 마스크를 챙기세요', emphasis: false });
+    }
+  }
+  if (w.uvIndex !== undefined) {
+    const level = uvLevel(w.uvIndex);
+    if (level === 'veryHigh' || level === 'extreme') {
+      advice.push({ id: 'uv', text: '자외선지수 매우 높음 — 모자·선글라스·자외선 차단제를 꼭 챙기세요', emphasis: true });
+    } else if (level === 'high') {
+      advice.push({ id: 'uv', text: '자외선지수 높음 — 모자나 자외선 차단제를 챙기면 좋아요', emphasis: false });
+    }
   }
   return advice;
 }

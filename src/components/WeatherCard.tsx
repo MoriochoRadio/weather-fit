@@ -1,5 +1,5 @@
 import type { WeatherSummary } from '../types';
-import { BAND_LABELS, referenceTemp, tempBand, weatherIcon } from '../engine/recommend';
+import { BAND_LABELS, aqiLabel, aqiLevel, referenceTemp, tempBand, weatherIcon } from '../engine/recommend';
 
 interface Props {
   weather: WeatherSummary;
@@ -35,6 +35,18 @@ export default function WeatherCard({ weather }: Props) {
           <dt>바람</dt>
           <dd>{Math.round(weather.windSpeed)}km/h</dd>
         </div>
+        {weather.airQuality && (
+          <div>
+            <dt>미세먼지</dt>
+            <dd>{aqiLabel(aqiLevel(weather.airQuality.pm25, weather.airQuality.pm10))}</dd>
+          </div>
+        )}
+        {weather.uvIndex !== undefined && (
+          <div>
+            <dt>자외선</dt>
+            <dd>{Math.round(weather.uvIndex)}</dd>
+          </div>
+        )}
       </dl>
     </section>
   );

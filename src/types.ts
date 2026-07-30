@@ -22,6 +22,10 @@ export interface WeatherSummary {
   weatherCode: number;
   /** 하루 전체 시간 흐름 (FR-17) — 구버전 캐시 등으로 없을 수 있음 */
   hourly?: HourlyForecast;
+  /** 오늘 최고 자외선지수 (FR-21) — 대기질 API처럼 별도 실패 가능성이 있어 옵셔널 */
+  uvIndex?: number;
+  /** 미세먼지 — 별도 API(대기질) 실패 시 없을 수 있음 (FR-21) */
+  airQuality?: { pm25: number; pm10: number };
 }
 
 export type StyleId = 'oldmoney' | 'casual' | 'formal' | 'minimal';

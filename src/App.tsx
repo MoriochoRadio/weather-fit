@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { City, StyleId, ToneFilter, WeatherSummary } from './types';
 import { DEFAULT_CITY, getCurrentPosition, loadFavorites, loadSavedCity, saveCity, toggleFavorite } from './services/geo';
+import { loadSavedStyle, loadSavedTone, saveStyle, saveTone } from './services/prefs';
 import { fetchWeather } from './services/weather';
+import { fetchAirQuality } from './services/airQuality';
 import { buildAdvice, recommend, recommendAlternates } from './engine/recommend';
 import { STYLE_LABELS } from './data/outfits';
 import WeatherCard from './components/WeatherCard';
@@ -30,8 +32,16 @@ export default function App() {
   const [weather, setWeather] = useState<WeatherSummary | null>(null);
   const [state, setState] = useState<LoadState>('loading');
   const [errorMessage, setErrorMessage] = useState('날씨를 불러오지 못했어요. 네트워크 연결을 확인해 주세요.');
-  const [style, setStyle] = useState<StyleId>('oldmoney');
-  const [tone, setTone] = useState<ToneFilter>('all');
+  const [style, setStyleState] = useState<StyleId>(() => loadSavedStyle() ?? 'oldmoney');
+  const [tone, setToneState] = useState<ToneFilter>(() => loadSavedTone() ?? 'all');
+  const setStyle = useCallback((s: StyleId) => {
+    setStyleState(s);
+    saveStyle(s);
+  }, []);
+  const setTone = useCallback((t: ToneFilter) => {
+    setToneState(t);
+    saveTone(t);
+  }, []);
   const [searchOpen, setSearchOpen] = useState(false);
   const [showAlternates, setShowAlternates] = useState(false);
   const [favorites, setFavorites] = useState<City[]>(() => loadFavorites());
@@ -51,9 +61,13 @@ export default function App() {
 
     setState('loading');
     try {
-      const w = await fetchWeather(target.latitude, target.longitude, target.name, controller.signal);
+      const [w, aq] = await Promise.all([
+        fetchWeather(target.latitude, target.longitude, target.name, controller.signal),
+        fetchAirQuality(target.latitude, target.longitude, controller.signal),
+      ]);
+      if (controller.signal.aborted) return;
       setCity(target);
-      setWeather(w);
+      setWeather(aq ? { ...w, airQuality: aq } : w);
       setState('ready');
     } catch (err) {
       if (controller.signal.aborted) return; // 더 최신 요청으로 대체됨 — 조용히 무시

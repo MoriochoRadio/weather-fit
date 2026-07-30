@@ -13,6 +13,7 @@ interface ForecastResponse {
     precipitation_probability_max: (number | null)[];
     precipitation_sum: number[];
     weather_code: number[];
+    uv_index_max?: (number | null)[];
   };
   hourly: {
     time: string[];
@@ -61,7 +62,7 @@ export async function fetchWeather(
   url.searchParams.set('current', 'temperature_2m,apparent_temperature,weather_code,wind_speed_10m');
   url.searchParams.set(
     'daily',
-    'temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,weather_code',
+    'temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,weather_code,uv_index_max',
   );
   url.searchParams.set('hourly', 'temperature_2m,apparent_temperature,precipitation_probability,weather_code');
   url.searchParams.set('forecast_days', '1');
@@ -96,6 +97,7 @@ export async function fetchWeather(
     precipSum: data.daily.precipitation_sum[0] ?? 0,
     windSpeed: data.current.wind_speed_10m,
     weatherCode: data.current.weather_code,
+    uvIndex: data.daily.uv_index_max?.[0] ?? undefined,
     hourly: {
       hours: data.hourly.time.map((t) => new Date(t).getHours()),
       temp: data.hourly.temperature_2m,

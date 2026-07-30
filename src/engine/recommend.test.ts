@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildAdvice, isRainy, recommend, recommendAlternates, referenceTemp, tempBand } from './recommend';
+import { aqiLevel, buildAdvice, isRainy, recommend, recommendAlternates, referenceTemp, tempBand, uvLevel } from './recommend';
 import { OUTFITS, STYLE_ORDER } from '../data/outfits';
 import type { TempBand, WeatherSummary } from '../types';
 
@@ -281,5 +281,48 @@ describe('buildAdvice', () => {
     expect(rain).toBeDefined();
     expect(rain!.text).not.toContain('NaN');
     expect(rain!.text).toContain('비 예보');
+  });
+  it('미세먼지 매우 나쁨이면 경고성 조언을 낸다 (FR-21)', () => {
+    const advice = buildAdvice(makeWeather({ airQuality: { pm25: 90, pm10: 160 } }));
+    const aqi = advice.find((a) => a.id === 'aqi');
+    expect(aqi).toMatchObject({ emphasis: true });
+    expect(aqi!.text).toContain('매우 나쁨');
+  });
+  it('미세먼지가 좋음이면 조언이 없다', () => {
+    expect(buildAdvice(makeWeather({ airQuality: { pm25: 5, pm10: 10 } }))).toEqual([]);
+  });
+  it('자외선지수가 매우 높으면 조언을 낸다 (FR-21)', () => {
+    const advice = buildAdvice(makeWeather({ uvIndex: 9 }));
+    const uv = advice.find((a) => a.id === 'uv');
+    expect(uv).toMatchObject({ emphasis: true });
+  });
+  it('자외선지수가 낮으면 조언이 없다', () => {
+    expect(buildAdvice(makeWeather({ uvIndex: 2 }))).toEqual([]);
+  });
+});
+
+describe('aqiLevel (FR-21)', () => {
+  it('PM2.5·PM10 중 더 나쁜 쪽 등급을 따른다', () => {
+    expect(aqiLevel(5, 10)).toBe('good');
+    expect(aqiLevel(20, 10)).toBe('moderate');
+    expect(aqiLevel(40, 10)).toBe('bad');
+    expect(aqiLevel(5, 160)).toBe('veryBad');
+  });
+  it('NaN/Infinity는 좋음으로 안전 폴백한다', () => {
+    expect(aqiLevel(NaN, 10)).toBe('good');
+    expect(aqiLevel(10, Infinity)).toBe('good');
+  });
+});
+
+describe('uvLevel (FR-21)', () => {
+  it('WHO 자외선지수 구간을 따른다', () => {
+    expect(uvLevel(1)).toBe('low');
+    expect(uvLevel(4)).toBe('moderate');
+    expect(uvLevel(7)).toBe('high');
+    expect(uvLevel(9)).toBe('veryHigh');
+    expect(uvLevel(12)).toBe('extreme');
+  });
+  it('NaN/Infinity는 낮음으로 안전 폴백한다', () => {
+    expect(uvLevel(NaN)).toBe('low');
   });
 });
