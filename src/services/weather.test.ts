@@ -54,6 +54,26 @@ describe('fetchWeather', () => {
     expect(w.tomorrow).toEqual({ tempMin: 18, tempMax: 27, precipProb: 70, weatherCode: 61 });
   });
 
+  it('hourly 배열에 내일치(이틀분 48개)가 섞여 와도 오늘 24개만 사용한다 (QA: 오늘/내일 혼합 회귀)', async () => {
+    const body = validResponse();
+    // 오늘 0~23시(temp 10~33) 뒤에 내일 0~23시(temp 100~123, 확연히 다른 값)를 이어붙인다
+    const todayTimes = Array.from({ length: 24 }, (_, h) => `2026-07-27T${String(h).padStart(2, '0')}:00`);
+    const tomorrowTimes = Array.from({ length: 24 }, (_, h) => `2026-07-28T${String(h).padStart(2, '0')}:00`);
+    body.hourly.time = [...todayTimes, ...tomorrowTimes];
+    body.hourly.temperature_2m = [
+      ...Array.from({ length: 24 }, (_, h) => 10 + h),
+      ...Array.from({ length: 24 }, (_, h) => 100 + h),
+    ];
+    body.hourly.apparent_temperature = body.hourly.temperature_2m;
+    body.hourly.precipitation_probability = [...Array.from({ length: 24 }, () => 5), ...Array.from({ length: 24 }, () => 90)];
+    body.hourly.weather_code = [...Array.from({ length: 24 }, () => 1), ...Array.from({ length: 24 }, () => 61)];
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(body)));
+    const w = await fetchWeather(37.5, 127, '서울');
+    expect(w.hourly?.hours).toHaveLength(24);
+    expect(w.hourly?.temp).toEqual(Array.from({ length: 24 }, (_, h) => 10 + h));
+    expect(w.hourly?.precipProb.every((p) => p === 5)).toBe(true);
+  });
+
   it('HTTP 오류 상태면 에러를 던진다', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({}, false)));
     await expect(fetchWeather(37.5, 127, '서울')).rejects.toThrow(/날씨 API 오류/);

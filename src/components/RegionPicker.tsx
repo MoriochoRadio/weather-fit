@@ -16,9 +16,11 @@ export default function RegionPicker({ open, current, onSelect, onClose }: Props
   const selectRef = useRef<HTMLSelectElement>(null);
 
   // 패널이 열리면 곧바로 select로 포커스를 옮긴다 (키보드/스크린리더 사용자가 트리거 버튼 뒤를 헤매지 않도록)
+  // RegionPicker는 App에 항상 렌더링되고 open=false일 때만 null을 반환하는 구조라, deps를 []로 두면
+  // 최초 마운트(닫힌 상태) 시 단 한 번만 실행되고 이후 열 때마다 재실행되지 않는다 (QA: 포커스 이동 안 됨)
   useEffect(() => {
-    selectRef.current?.focus();
-  }, []);
+    if (open) selectRef.current?.focus();
+  }, [open]);
 
   if (!open) return null;
 

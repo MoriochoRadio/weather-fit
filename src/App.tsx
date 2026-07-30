@@ -52,6 +52,8 @@ export default function App() {
   const [isOffline, setIsOffline] = useState(() => typeof navigator !== 'undefined' && !navigator.onLine);
   const abortRef = useRef<AbortController | null>(null);
   const searchTriggerRef = useRef<HTMLButtonElement>(null);
+  const savedToggleRef = useRef<HTMLButtonElement>(null);
+  const outfitPanelRef = useRef<HTMLDivElement>(null);
 
   const closeSearch = useCallback(() => {
     setSearchOpen(false);
@@ -66,14 +68,18 @@ export default function App() {
 
     setState('loading');
     try {
-      const [w, aq] = await Promise.all([
-        fetchWeather(target.latitude, target.longitude, target.name, controller.signal),
-        fetchAirQuality(target.latitude, target.longitude, controller.signal),
-      ]);
+      const w = await fetchWeather(target.latitude, target.longitude, target.name, controller.signal);
       if (controller.signal.aborted) return;
       setCity(target);
-      setWeather(aq ? { ...w, airQuality: aq } : w);
+      setWeather(w);
       setState('ready');
+
+      // 대기질은 부가 정보라 날씨 표시를 기다리게 하지 않고 도착하는 대로 병합한다 (QA: 대기질 API가
+      // 느리면 날씨까지 함께 지연되던 문제)
+      void fetchAirQuality(target.latitude, target.longitude, controller.signal).then((aq) => {
+        if (!aq || controller.signal.aborted) return;
+        setWeather((prev) => (prev ? { ...prev, airQuality: aq } : prev));
+      });
     } catch (err) {
       if (controller.signal.aborted) return; // 더 최신 요청으로 대체됨 — 조용히 무시
       setErrorMessage(
@@ -130,6 +136,26 @@ export default function App() {
     setSavedOutfitIds((prev) => toggleSavedOutfit(outfitId, prev));
   }, []);
 
+  const savedOutfits = useMemo(
+    () => savedOutfitIds.map((id) => OUTFITS.find((o) => o.id === id)).filter((o): o is (typeof OUTFITS)[number] => !!o),
+    [savedOutfitIds],
+  );
+
+  // 즐겨찾는 코디 목록 안에서 별을 눌러 뺄 때는 카드 자체가 사라져 포커스를 잃으므로,
+  // 사라지기 전에 목록 토글 버튼으로 포커스를 미리 옮겨둔다 (QA: 포커스 유실).
+  // 단, 마지막 1개를 빼는 경우엔 그 토글 버튼째 섹션이 통째로 사라지므로 대신 코디 추천 영역으로 옮긴다 (QA)
+  const handleUnsaveFromSavedList = useCallback(
+    (outfitId: string) => {
+      if (savedOutfits.length <= 1) {
+        outfitPanelRef.current?.focus();
+      } else {
+        savedToggleRef.current?.focus();
+      }
+      setSavedOutfitIds((prev) => toggleSavedOutfit(outfitId, prev));
+    },
+    [savedOutfits.length],
+  );
+
   const dateKey = todayKey();
   const recs = useMemo(
     () => (weather ? recommend(style, weather, dateKey, tone) : []),
@@ -141,10 +167,12 @@ export default function App() {
   );
   const advice = useMemo(() => (weather ? buildAdvice(weather) : []), [weather]);
   const hasAlternates = alternates.cooler.length > 0 || alternates.warmer.length > 0;
-  const savedOutfits = useMemo(
-    () => savedOutfitIds.map((id) => OUTFITS.find((o) => o.id === id)).filter((o): o is (typeof OUTFITS)[number] => !!o),
-    [savedOutfitIds],
-  );
+
+  useEffect(() => {
+    // 목록이 비면 섹션 자체가 접혀 사라지므로, 나중에 다시 채워졌을 때 안 눌러도 펼쳐진 채로
+    // 나타나는 걸 방지 (QA: showSaved 상태 잔류)
+    if (savedOutfits.length === 0) setShowSaved(false);
+  }, [savedOutfits.length]);
 
   return (
     <div className="page">
@@ -204,6 +232,7 @@ export default function App() {
             {savedOutfits.length > 0 && (
               <section className="saved-outfits" aria-label="즐겨찾는 코디">
                 <button
+                  ref={savedToggleRef}
                   type="button"
                   className="text-btn"
                   aria-expanded={showSaved}
@@ -220,7 +249,7 @@ export default function App() {
                         index={i}
                         prefix="SAVED"
                         saved
-                        onToggleSave={handleToggleSaveOutfit}
+                        onToggleSave={handleUnsaveFromSavedList}
                       />
                     ))}
                   </div>
@@ -254,7 +283,7 @@ export default function App() {
                   </div>
                 </div>
               </div>
-              <div id="outfit-panel" role="tabpanel" aria-labelledby={styleTabId(style)} tabIndex={-1}>
+              <div id="outfit-panel" ref={outfitPanelRef} role="tabpanel" aria-labelledby={styleTabId(style)} tabIndex={-1}>
               {recs.length > 0 ? (
                 <div className="outfit-list">
                   {recs.map((rec, i) => (

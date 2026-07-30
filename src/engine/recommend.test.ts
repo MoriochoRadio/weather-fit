@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { aqiLevel, buildAdvice, isRainy, recommend, recommendAlternates, referenceTemp, tempBand, uvLevel } from './recommend';
+import {
+  aqiLevel,
+  buildAdvice,
+  isRainy,
+  isSnowy,
+  recommend,
+  recommendAlternates,
+  referenceTemp,
+  tempBand,
+  uvLevel,
+  weatherIcon,
+} from './recommend';
 import { OUTFITS, STYLE_ORDER } from '../data/outfits';
 import type { TempBand, WeatherSummary } from '../types';
 
@@ -312,6 +323,26 @@ describe('aqiLevel (FR-21)', () => {
     expect(aqiLevel(NaN, 10)).toBe('good');
     expect(aqiLevel(10, Infinity)).toBe('good');
   });
+  it.each<[number, string]>([
+    [15, 'good'],
+    [16, 'moderate'],
+    [35, 'moderate'],
+    [36, 'bad'],
+    [75, 'bad'],
+    [76, 'veryBad'],
+  ])('PM2.5 경계값 %i㎍/㎥ → %s (QA: 경계값 테스트 보강)', (pm25, level) => {
+    expect(aqiLevel(pm25, 0)).toBe(level);
+  });
+  it.each<[number, string]>([
+    [30, 'good'],
+    [31, 'moderate'],
+    [80, 'moderate'],
+    [81, 'bad'],
+    [150, 'bad'],
+    [151, 'veryBad'],
+  ])('PM10 경계값 %i㎍/㎥ → %s (QA: 경계값 테스트 보강)', (pm10, level) => {
+    expect(aqiLevel(0, pm10)).toBe(level);
+  });
 });
 
 describe('uvLevel (FR-21)', () => {
@@ -324,5 +355,44 @@ describe('uvLevel (FR-21)', () => {
   });
   it('NaN/Infinity는 낮음으로 안전 폴백한다', () => {
     expect(uvLevel(NaN)).toBe('low');
+  });
+  it.each<[number, string]>([
+    [2, 'low'],
+    [3, 'moderate'],
+    [5, 'moderate'],
+    [6, 'high'],
+    [7, 'high'],
+    [8, 'veryHigh'],
+    [10, 'veryHigh'],
+    [11, 'extreme'],
+  ])('경계값 %i → %s (QA: 경계값 테스트 보강)', (uv, level) => {
+    expect(uvLevel(uv)).toBe(level);
+  });
+});
+
+describe('weatherIcon (QA: 테스트 커버리지 보강)', () => {
+  it.each<[number, string]>([
+    [0, '맑음'],
+    [1, '구름 조금'],
+    [2, '구름 조금'],
+    [3, '흐림'],
+    [45, '안개'],
+    [48, '안개'],
+    [61, '비'],
+    [71, '눈'],
+    [95, '뇌우'],
+    [999, '뇌우'],
+    [10, '흐림'],
+  ])('날씨 코드 %i → %s', (code, label) => {
+    expect(weatherIcon(code)).toBe(label);
+  });
+});
+
+describe('isSnowy (QA: 테스트 커버리지 보강)', () => {
+  it.each([71, 73, 75, 77, 85, 86])('눈 코드 %i는 true', (code) => {
+    expect(isSnowy({ ...makeWeather(), weatherCode: code })).toBe(true);
+  });
+  it.each([0, 61, 95])('눈이 아닌 코드 %i는 false', (code) => {
+    expect(isSnowy({ ...makeWeather(), weatherCode: code })).toBe(false);
   });
 });

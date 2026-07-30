@@ -25,6 +25,7 @@ interface ForecastResponse {
 }
 
 const TIMEOUT_MS = 10_000;
+const HOURS_PER_DAY = 24;
 
 /** 필수 필드가 있는지 확인 — API가 부분 장애로 스키마가 어긋난 응답을 주면 조용히 죽지 않고 명확한 에러를 던진다 */
 function assertValidResponse(data: unknown): asserts data is ForecastResponse {
@@ -39,6 +40,7 @@ function assertValidResponse(data: unknown): asserts data is ForecastResponse {
     Array.isArray(d.daily?.temperature_2m_min) &&
     Array.isArray(d.daily?.precipitation_probability_max) &&
     Array.isArray(d.daily?.precipitation_sum) &&
+    Array.isArray(d.daily?.weather_code) &&
     Array.isArray(d.hourly?.time) &&
     Array.isArray(d.hourly?.temperature_2m) &&
     Array.isArray(d.hourly?.apparent_temperature) &&
@@ -107,12 +109,15 @@ export async function fetchWeather(
             weatherCode: data.daily.weather_code[1],
           }
         : undefined,
+    // forecast_days=2라 hourly.*는 오늘+내일(최대 48개)이 이어서 온다. hours를 시각(0~23)만으로 저장하므로
+    // 자르지 않으면 오늘 09시와 내일 09시가 같은 "9"로 뭉개져 브리핑·추천 기준온도가 오늘/내일 평균으로
+    // 오염된다 (QA) — 앞 24개(오늘)만 잘라서 쓴다.
     hourly: {
-      hours: data.hourly.time.map((t) => new Date(t).getHours()),
-      temp: data.hourly.temperature_2m,
-      feelsLike: data.hourly.apparent_temperature,
-      precipProb: data.hourly.precipitation_probability.map((p) => p ?? 0),
-      weatherCode: data.hourly.weather_code,
+      hours: data.hourly.time.slice(0, HOURS_PER_DAY).map((t) => new Date(t).getHours()),
+      temp: data.hourly.temperature_2m.slice(0, HOURS_PER_DAY),
+      feelsLike: data.hourly.apparent_temperature.slice(0, HOURS_PER_DAY),
+      precipProb: data.hourly.precipitation_probability.slice(0, HOURS_PER_DAY).map((p) => p ?? 0),
+      weatherCode: data.hourly.weather_code.slice(0, HOURS_PER_DAY),
     },
   };
 }

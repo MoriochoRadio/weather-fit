@@ -35,8 +35,13 @@ function shareText(outfit: Recommendation['outfit']): string {
 export default function OutfitCard({ rec, index, prefix = 'LOOK', saved, onToggleSave }: Props) {
   const { outfit, rainWarning } = rec;
   const [showGlossary, setShowGlossary] = useState(false);
-  const [shareState, setShareState] = useState<'idle' | 'copied'>('idle');
+  const [shareState, setShareState] = useState<'idle' | 'copied' | 'unsupported'>('idle');
   const glossary = useMemo(() => findGlossary(outfit.items), [outfit]);
+
+  const flashState = (next: 'copied' | 'unsupported') => {
+    setShareState(next);
+    setTimeout(() => setShareState('idle'), 2000);
+  };
 
   const handleShare = async () => {
     const text = shareText(outfit);
@@ -51,12 +56,15 @@ export default function OutfitCard({ rec, index, prefix = 'LOOK', saved, onToggl
     if (navigator.clipboard) {
       try {
         await navigator.clipboard.writeText(text);
-        setShareState('copied');
-        setTimeout(() => setShareState('idle'), 2000);
+        flashState('copied');
       } catch {
-        // 클립보드 권한이 없는 등 — 조용히 무시
+        // 클립보드 권한이 없는 등 — 실패했다는 걸 알려준다 (QA: 무반응 방지)
+        flashState('unsupported');
       }
+      return;
     }
+    // Web Share·클립보드 둘 다 없는 환경(비보안 컨텍스트, 구형 브라우저 등) — 조용히 실패하지 않고 알린다 (QA)
+    flashState('unsupported');
   };
 
   return (
@@ -106,8 +114,16 @@ export default function OutfitCard({ rec, index, prefix = 'LOOK', saved, onToggl
       <p className="outfit-tip">{outfit.tip}</p>
       <div className="outfit-actions">
         <button type="button" className="text-btn" onClick={handleShare}>
-          {shareState === 'copied' ? '복사됨' : '공유'}
+          {shareState === 'copied' ? '복사됨' : shareState === 'unsupported' ? '공유 불가' : '공유'}
         </button>
+        {/* 버튼 라벨 변경만으론 스크린리더에 안정적으로 전달되지 않아 별도 라이브 리전으로 알림 (QA) */}
+        <span className="sr-only" role="status">
+          {shareState === 'copied'
+            ? '코디 내용이 클립보드에 복사됐어요'
+            : shareState === 'unsupported'
+              ? '이 브라우저에서는 공유를 지원하지 않아요'
+              : ''}
+        </span>
       </div>
       {glossary.length > 0 && (
         <div className="glossary">

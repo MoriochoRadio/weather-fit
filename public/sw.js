@@ -2,7 +2,11 @@
 // Vite 빌드 산출물의 JS/CSS 파일명은 해시가 매번 바뀌어 미리 목록을 알 수 없으므로,
 // 고정 프리캐시 목록 대신 "네트워크 우선, 실패 시 캐시" 런타임 캐싱을 쓴다 —
 // 처음 성공한 요청부터 그 URL 그대로 캐시되므로 해시 변경에 영향받지 않는다.
-const CACHE_NAME = 'weatherfit-v1';
+// CACHE_NAME은 배포마다 바뀌어야 activate 단계에서 이전 캐시(오래된 JS/CSS 번들 포함)가 실제로
+// 삭제된다 — 버전이 그대로면 activate의 정리 로직이 죽은 코드가 되어 캐시가 무한히 쌓인다 (QA).
+// 수동으로 올리는 걸 잊는 사고를 막기 위해 __BUILD_ID__는 scripts/stamp-sw.mjs가 `npm run build`
+// 후 커밋 해시로 자동 치환한다 (dev 서버·이 파일을 직접 열었을 때는 리터럴 그대로 남아있어도 무해함).
+const CACHE_NAME = 'weatherfit-__BUILD_ID__';
 
 self.addEventListener('install', () => {
   self.skipWaiting();
