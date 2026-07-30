@@ -65,7 +65,7 @@ export async function fetchWeather(
     'temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,weather_code,uv_index_max',
   );
   url.searchParams.set('hourly', 'temperature_2m,apparent_temperature,precipitation_probability,weather_code');
-  url.searchParams.set('forecast_days', '1');
+  url.searchParams.set('forecast_days', '2');
   url.searchParams.set('timezone', 'auto');
 
   const controller = new AbortController();
@@ -98,6 +98,15 @@ export async function fetchWeather(
     windSpeed: data.current.wind_speed_10m,
     weatherCode: data.current.weather_code,
     uvIndex: data.daily.uv_index_max?.[0] ?? undefined,
+    tomorrow:
+      data.daily.temperature_2m_max.length > 1
+        ? {
+            tempMin: data.daily.temperature_2m_min[1],
+            tempMax: data.daily.temperature_2m_max[1],
+            precipProb: data.daily.precipitation_probability_max[1] ?? 0,
+            weatherCode: data.daily.weather_code[1],
+          }
+        : undefined,
     hourly: {
       hours: data.hourly.time.map((t) => new Date(t).getHours()),
       temp: data.hourly.temperature_2m,

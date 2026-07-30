@@ -5,9 +5,11 @@ import { loadSavedStyle, loadSavedTone, saveStyle, saveTone } from './services/p
 import { fetchWeather } from './services/weather';
 import { fetchAirQuality } from './services/airQuality';
 import { buildAdvice, recommend, recommendAlternates } from './engine/recommend';
-import { STYLE_LABELS } from './data/outfits';
+import { OUTFITS, STYLE_LABELS } from './data/outfits';
+import { loadSavedOutfitIds, toggleSavedOutfit } from './services/savedOutfits';
 import WeatherCard from './components/WeatherCard';
 import DayBrief from './components/DayBrief';
+import TomorrowPreview from './components/TomorrowPreview';
 import AdviceList from './components/AdviceList';
 import StyleTabs, { styleTabId } from './components/StyleTabs';
 import OutfitCard from './components/OutfitCard';
@@ -45,6 +47,9 @@ export default function App() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [showAlternates, setShowAlternates] = useState(false);
   const [favorites, setFavorites] = useState<City[]>(() => loadFavorites());
+  const [savedOutfitIds, setSavedOutfitIds] = useState<string[]>(() => loadSavedOutfitIds());
+  const [showSaved, setShowSaved] = useState(false);
+  const [isOffline, setIsOffline] = useState(() => typeof navigator !== 'undefined' && !navigator.onLine);
   const abortRef = useRef<AbortController | null>(null);
   const searchTriggerRef = useRef<HTMLButtonElement>(null);
 
@@ -81,6 +86,17 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    const goOnline = () => setIsOffline(false);
+    const goOffline = () => setIsOffline(true);
+    window.addEventListener('online', goOnline);
+    window.addEventListener('offline', goOffline);
+    return () => {
+      window.removeEventListener('online', goOnline);
+      window.removeEventListener('offline', goOffline);
+    };
+  }, []);
+
+  useEffect(() => {
     (async () => {
       const saved = loadSavedCity();
       if (saved) {
@@ -110,6 +126,10 @@ export default function App() {
     setFavorites((prev) => toggleFavorite(city, prev));
   };
 
+  const handleToggleSaveOutfit = useCallback((outfitId: string) => {
+    setSavedOutfitIds((prev) => toggleSavedOutfit(outfitId, prev));
+  }, []);
+
   const dateKey = todayKey();
   const recs = useMemo(
     () => (weather ? recommend(style, weather, dateKey, tone) : []),
@@ -121,6 +141,10 @@ export default function App() {
   );
   const advice = useMemo(() => (weather ? buildAdvice(weather) : []), [weather]);
   const hasAlternates = alternates.cooler.length > 0 || alternates.warmer.length > 0;
+  const savedOutfits = useMemo(
+    () => savedOutfitIds.map((id) => OUTFITS.find((o) => o.id === id)).filter((o): o is (typeof OUTFITS)[number] => !!o),
+    [savedOutfitIds],
+  );
 
   return (
     <div className="page">
@@ -152,6 +176,11 @@ export default function App() {
       <RegionPicker open={searchOpen} current={city} onSelect={handleSelectCity} onClose={closeSearch} />
 
       <main>
+        {isOffline && state === 'ready' && (
+          <p className="offline-banner" role="status">
+            오프라인 — 마지막으로 본 정보예요
+          </p>
+        )}
         {state === 'loading' && (
           <p className="status loading" role="status">
             오늘 날씨를 불러오는 중…
@@ -169,7 +198,35 @@ export default function App() {
           <>
             <WeatherCard weather={weather} />
             <DayBrief weather={weather} />
+            <TomorrowPreview weather={weather} />
             <AdviceList advice={advice} />
+
+            {savedOutfits.length > 0 && (
+              <section className="saved-outfits" aria-label="즐겨찾는 코디">
+                <button
+                  type="button"
+                  className="text-btn"
+                  aria-expanded={showSaved}
+                  onClick={() => setShowSaved((v) => !v)}
+                >
+                  {showSaved ? '즐겨찾는 코디 접기' : `즐겨찾는 코디 보기 (${savedOutfits.length})`}
+                </button>
+                {showSaved && (
+                  <div className="outfit-list">
+                    {savedOutfits.map((outfit, i) => (
+                      <OutfitCard
+                        key={outfit.id}
+                        rec={{ outfit, rainWarning: false }}
+                        index={i}
+                        prefix="SAVED"
+                        saved
+                        onToggleSave={handleToggleSaveOutfit}
+                      />
+                    ))}
+                  </div>
+                )}
+              </section>
+            )}
 
             <section aria-label="코디 추천">
               <div className="section-head">
@@ -201,7 +258,13 @@ export default function App() {
               {recs.length > 0 ? (
                 <div className="outfit-list">
                   {recs.map((rec, i) => (
-                    <OutfitCard key={rec.outfit.id} rec={rec} index={i} />
+                    <OutfitCard
+                      key={rec.outfit.id}
+                      rec={rec}
+                      index={i}
+                      saved={savedOutfitIds.includes(rec.outfit.id)}
+                      onToggleSave={handleToggleSaveOutfit}
+                    />
                   ))}
                 </div>
               ) : (
@@ -229,7 +292,14 @@ export default function App() {
                           <h3 className="alt-title">더 시원하게 입고 싶다면</h3>
                           <div className="outfit-list">
                             {alternates.cooler.map((rec, i) => (
-                              <OutfitCard key={rec.outfit.id} rec={rec} index={i} prefix="ALT" />
+                              <OutfitCard
+                                key={rec.outfit.id}
+                                rec={rec}
+                                index={i}
+                                prefix="ALT"
+                                saved={savedOutfitIds.includes(rec.outfit.id)}
+                                onToggleSave={handleToggleSaveOutfit}
+                              />
                             ))}
                           </div>
                         </>
@@ -244,6 +314,8 @@ export default function App() {
                                 rec={rec}
                                 index={alternates.cooler.length + i}
                                 prefix="ALT"
+                                saved={savedOutfitIds.includes(rec.outfit.id)}
+                                onToggleSave={handleToggleSaveOutfit}
                               />
                             ))}
                           </div>

@@ -187,6 +187,12 @@ button {
   letter-spacing: 0.02em;
 }
 
+.tomorrow-preview {
+  font-size: 13px;
+  color: var(--muted);
+  margin: 8px 0 0;
+}
+
 /* ── 지역 선택 ── */
 .picker {
   border: 1px solid var(--line);
@@ -534,6 +540,25 @@ button {
   padding: 1px 6px;
 }
 
+.outfit-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.outfit-save {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 16px;
+  line-height: 1;
+  color: var(--muted);
+}
+
+.outfit-save.active {
+  color: var(--accent);
+}
+
 .outfit-name {
   font-size: 17px;
   margin: 0 0 10px;
@@ -626,6 +651,10 @@ button {
   line-height: 1.65;
 }
 
+.outfit-actions {
+  margin-top: 10px;
+}
+
 /* ── 용어 쉽게 풀이 ── */
 .glossary {
   margin-top: 12px;
@@ -688,6 +717,17 @@ button {
   color: var(--muted);
 }
 
+/* ── 즐겨찾는 코디 ── */
+.saved-outfits {
+  margin: 24px 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line);
+}
+
+.saved-outfits .outfit-list {
+  margin-top: 14px;
+}
+
 /* ── 대안 코디 ── */
 .alternates {
   margin-top: 18px;
@@ -711,6 +751,15 @@ button {
 .status.error p {
   color: var(--warn);
   margin: 0 0 8px;
+}
+
+.offline-banner {
+  font-size: 12px;
+  color: var(--warn);
+  border: 1px solid currentColor;
+  padding: 4px 10px;
+  margin: 0 0 16px;
+  display: inline-block;
 }
 
 .foot {

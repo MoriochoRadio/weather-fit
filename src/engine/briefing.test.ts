@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildBriefing, daytimeFeels, findRainWindows, formatHour } from './briefing';
+import { buildBriefing, daytimeFeels, findRainWindows, formatHour, tomorrowLine } from './briefing';
 import { referenceTemp } from './recommend';
 import type { WeatherSummary } from '../types';
 
@@ -110,5 +110,29 @@ describe('formatHour', () => {
     [0, '밤 12시'],
   ])('%i시 → %s', (h, label) => {
     expect(formatHour(h)).toBe(label);
+  });
+});
+
+describe('tomorrowLine (FR-24)', () => {
+  const today = makeHourlyWeather({});
+  it('3도 이상 낮으면 낮다고 안내한다', () => {
+    expect(tomorrowLine(today, { tempMin: 10, tempMax: 20, precipProb: 10, weatherCode: 1 })).toBe(
+      '내일은 오늘보다 5° 낮아요',
+    );
+  });
+  it('3도 이상 높으면 높다고 안내한다', () => {
+    expect(tomorrowLine(today, { tempMin: 20, tempMax: 30, precipProb: 10, weatherCode: 1 })).toBe(
+      '내일은 오늘보다 5° 높아요',
+    );
+  });
+  it('차이가 작으면 비슷하다고 안내한다', () => {
+    expect(tomorrowLine(today, { tempMin: 15, tempMax: 26, precipProb: 10, weatherCode: 1 })).toBe(
+      '내일도 오늘과 비슷해요',
+    );
+  });
+  it('강수확률이 높으면 비 소식을 덧붙인다', () => {
+    expect(tomorrowLine(today, { tempMin: 15, tempMax: 25, precipProb: 70, weatherCode: 61 })).toBe(
+      '내일도 오늘과 비슷해요 — 비 소식이 있어요',
+    );
   });
 });

@@ -28,6 +28,10 @@ describe('pickIcon (FR-16)', () => {
     ['acc', '네이비 토트백 · 실버 프레임 선글라스', 'bag'],
     ['acc', '실버 시계', 'watch'],
     ['acc', '라이트그레이 캐시미어 머플러', 'scarf'],
+    ['acc', '블랙 가죽 벨트', 'belt'],
+    ['acc', '블랙 가죽 장갑', 'glove'],
+    ['acc', '네이비 니트 타이(선택)', 'tie'],
+    ['acc', '장우산(블랙) · 가죽 벨트', 'umbrella'],
   ])('%s "%s" → %s', (field, text, expected) => {
     expect(pickIcon(field, text)).toBe(expected);
   });

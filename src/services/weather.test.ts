@@ -40,6 +40,18 @@ describe('fetchWeather', () => {
     expect(w.city).toBe('서울');
     expect(w.tempNow).toBe(20);
     expect(w.hourly?.hours).toEqual([0]);
+    expect(w.tomorrow).toBeUndefined();
+  });
+
+  it('daily 배열에 이틀치가 있으면 내일 미리보기를 채운다 (FR-24)', async () => {
+    const body = validResponse();
+    body.daily.temperature_2m_max = [22, 27];
+    body.daily.temperature_2m_min = [15, 18];
+    body.daily.precipitation_probability_max = [30, 70];
+    body.daily.weather_code = [1, 61];
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(body)));
+    const w = await fetchWeather(37.5, 127, '서울');
+    expect(w.tomorrow).toEqual({ tempMin: 18, tempMax: 27, precipProb: 70, weatherCode: 61 });
   });
 
   it('HTTP 오류 상태면 에러를 던진다', async () => {

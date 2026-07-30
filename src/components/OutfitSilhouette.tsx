@@ -21,6 +21,8 @@ function shoesPath(text: string) {
   const id = pickIcon('shoes', text);
   if (id === 'sandal') return CLOTHING_PATHS.sandal;
   if (id === 'sneaker') return CLOTHING_PATHS.runningShoe;
+  // 로퍼·더비·옥스포드 같은 낮은 정장화는 발목까지 오는 첼시 부츠와 모양이 달라 구분한다 (QA: 로퍼가 부츠로 보이던 문제)
+  if (id === 'dress-shoe') return CLOTHING_PATHS.loafer;
   return CLOTHING_PATHS.chelseaBoot;
 }
 

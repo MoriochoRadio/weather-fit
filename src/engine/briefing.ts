@@ -112,6 +112,17 @@ export function buildBriefing(w: WeatherSummary): DayBriefing | null {
   return { segments, rainWindows, lines };
 }
 
+/** 내일 미리보기 한 줄 — 오늘 최고기온 대비 몇 도 차이인지, 비 소식이 있는지 (FR-24) */
+export function tomorrowLine(today: WeatherSummary, tomorrow: NonNullable<WeatherSummary['tomorrow']>): string {
+  const diff = Math.round(tomorrow.tempMax - today.tempMax);
+  let line: string;
+  if (diff <= -3) line = `내일은 오늘보다 ${Math.abs(diff)}° 낮아요`;
+  else if (diff >= 3) line = `내일은 오늘보다 ${diff}° 높아요`;
+  else line = '내일도 오늘과 비슷해요';
+  if (Number.isFinite(tomorrow.precipProb) && tomorrow.precipProb >= 50) line += ' — 비 소식이 있어요';
+  return line;
+}
+
 /** 활동 시간대(9~21시) 평균 체감 — 하루 전체에 적합한 추천 기준 (FR-17) */
 export function daytimeFeels(w: WeatherSummary): number | null {
   const h = w.hourly;

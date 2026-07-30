@@ -18,6 +18,10 @@ export type IconId =
   | 'bag'
   | 'watch'
   | 'scarf'
+  | 'belt'
+  | 'glove'
+  | 'tie'
+  | 'umbrella'
   | 'acc';
 
 /**
@@ -51,6 +55,11 @@ export function pickIcon(field: keyof OutfitItems, text: string): IconId {
       if (has('백', '토트', '사코슈', '브리프케이스', '크로스')) return 'bag';
       if (has('시계')) return 'watch';
       if (has('머플러', '스카프')) return 'scarf';
+      // QA: 벨트·장갑·타이·우산이 전부 뭉뚱그려 안경 모양(기본 acc)으로 나오던 것을 세분화
+      if (has('우산')) return 'umbrella';
+      if (has('타이')) return 'tie';
+      if (has('장갑')) return 'glove';
+      if (has('벨트')) return 'belt';
       return 'acc';
   }
 }
@@ -167,6 +176,32 @@ const PATHS: Record<IconId, JSX.Element> = {
       <circle cx="7.2" cy="10" r="3.4" />
       <circle cx="12.8" cy="10" r="3.4" />
       <path d="M9.6 10h.8" />
+    </>
+  ),
+  belt: (
+    <>
+      <path d="M2.6 10h4.6M12.8 10h4.6" />
+      <rect x="7.2" y="7.3" width="5.6" height="5.4" rx="0.8" />
+      <path d="M10 7.3V5.6" />
+    </>
+  ),
+  glove: (
+    <>
+      <path d="M6.2 18v-6.8a1.9 1.9 0 0 1 1.9-1.9h.2V6.1a1.2 1.2 0 1 1 2.4 0v3.2h.3V4.9a1.2 1.2 0 1 1 2.4 0v4.4h.3a1.9 1.9 0 0 1 1.9 1.9V18Z" />
+      <path d="M6.2 12.5c-1.5 0-2.6.9-2.6 2.4V18h2.6" />
+    </>
+  ),
+  tie: (
+    <>
+      <path d="M7.6 3.4h4.8l-1 3.4-1.4 1-1.4-1Z" />
+      <path d="M8.6 7.8h2.8l1.3 8-2.7 2.6-2.7-2.6Z" />
+    </>
+  ),
+  umbrella: (
+    <>
+      <path d="M3 10.4a7 7 0 0 1 14 0Z" />
+      <path d="M3 10.4h14M6.5 10.4a3.5 5 0 0 1 7 0M10 3.4v1.4" />
+      <path d="M10 10.4V16a1.6 1.6 0 0 1-1.6 1.6" />
     </>
   ),
 };

@@ -26,6 +26,8 @@ export interface WeatherSummary {
   uvIndex?: number;
   /** 미세먼지 — 별도 API(대기질) 실패 시 없을 수 있음 (FR-21) */
   airQuality?: { pm25: number; pm10: number };
+  /** 내일 미리보기 (FR-24) — forecast_days=1로 받은 구버전 캐시 등으로 없을 수 있음 */
+  tomorrow?: { tempMin: number; tempMax: number; precipProb: number; weatherCode: number };
 }
 
 export type StyleId = 'oldmoney' | 'casual' | 'formal' | 'minimal';
