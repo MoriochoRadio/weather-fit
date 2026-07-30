@@ -23,7 +23,38 @@ interface ForecastResponse {
   };
 }
 
-export async function fetchWeather(latitude: number, longitude: number, cityName: string): Promise<WeatherSummary> {
+const TIMEOUT_MS = 10_000;
+
+/** 필수 필드가 있는지 확인 — API가 부분 장애로 스키마가 어긋난 응답을 주면 조용히 죽지 않고 명확한 에러를 던진다 */
+function assertValidResponse(data: unknown): asserts data is ForecastResponse {
+  const d = data as Partial<ForecastResponse> | null | undefined;
+  const ok =
+    d != null &&
+    typeof d.current?.temperature_2m === 'number' &&
+    typeof d.current?.apparent_temperature === 'number' &&
+    typeof d.current?.weather_code === 'number' &&
+    Array.isArray(d.daily?.temperature_2m_max) &&
+    d.daily!.temperature_2m_max.length > 0 &&
+    Array.isArray(d.daily?.temperature_2m_min) &&
+    Array.isArray(d.daily?.precipitation_probability_max) &&
+    Array.isArray(d.daily?.precipitation_sum) &&
+    Array.isArray(d.hourly?.time) &&
+    Array.isArray(d.hourly?.temperature_2m) &&
+    Array.isArray(d.hourly?.apparent_temperature) &&
+    Array.isArray(d.hourly?.precipitation_probability) &&
+    Array.isArray(d.hourly?.weather_code);
+  if (!ok) throw new Error('날씨 응답 형식이 올바르지 않습니다');
+}
+
+/**
+ * @param signal 호출 측(App)이 요청을 취소하고 싶을 때 넘기는 시그널 (예: 더 최신 요청으로 대체될 때)
+ */
+export async function fetchWeather(
+  latitude: number,
+  longitude: number,
+  cityName: string,
+  signal?: AbortSignal,
+): Promise<WeatherSummary> {
   const url = new URL('https://api.open-meteo.com/v1/forecast');
   url.searchParams.set('latitude', String(latitude));
   url.searchParams.set('longitude', String(longitude));
@@ -36,9 +67,24 @@ export async function fetchWeather(latitude: number, longitude: number, cityName
   url.searchParams.set('forecast_days', '1');
   url.searchParams.set('timezone', 'auto');
 
-  const res = await fetch(url);
+  const controller = new AbortController();
+  const onExternalAbort = () => controller.abort(signal?.reason);
+  signal?.addEventListener('abort', onExternalAbort, { once: true });
+  const timeoutId = setTimeout(
+    () => controller.abort(new DOMException('요청 시간이 초과됐어요', 'TimeoutError')),
+    TIMEOUT_MS,
+  );
+
+  let res: Response;
+  try {
+    res = await fetch(url, { signal: controller.signal });
+  } finally {
+    clearTimeout(timeoutId);
+    signal?.removeEventListener('abort', onExternalAbort);
+  }
   if (!res.ok) throw new Error(`날씨 API 오류 (${res.status})`);
-  const data: ForecastResponse = await res.json();
+  const data: unknown = await res.json();
+  assertValidResponse(data);
 
   return {
     city: cityName,

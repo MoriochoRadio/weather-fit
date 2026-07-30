@@ -23,6 +23,9 @@ export function referenceTemp(w: WeatherSummary): number {
 }
 
 export function tempBand(refTemp: number): TempBand {
+  // 날씨 API가 이상값(NaN/Infinity)을 주면 모든 비교가 false가 되어 조용히 'hot'(가장 더운 극단)으로
+  // 새는 것을 막는다 — 실제로 어느 쪽에도 치우치지 않은 중간값(mild)으로 안전하게 폴백.
+  if (!Number.isFinite(refTemp)) return 'mild';
   if (refTemp < 0) return 'freezing';
   if (refTemp < 9) return 'cold';
   if (refTemp < 17) return 'chilly';
@@ -154,7 +157,9 @@ export function buildAdvice(w: WeatherSummary): Advice[] {
   if (isSnowy(w)) {
     advice.push({ id: 'snow', text: '눈 예보 — 접지력 좋은 방한 부츠를 신고, 밑단이 긴 바지는 피하세요', emphasis: true });
   } else if (isRainy(w)) {
-    advice.push({ id: 'rain', text: `강수확률 ${Math.round(w.precipProb)}% — 우산을 챙기고 스웨이드 소재는 피하세요`, emphasis: true });
+    // precipProb가 결측/NaN이어도(예: weatherCode만으로 강수 판정된 경우) "강수확률 NaN%"가 노출되지 않게 방어
+    const probText = Number.isFinite(w.precipProb) ? `강수확률 ${Math.round(w.precipProb)}%` : '비 예보';
+    advice.push({ id: 'rain', text: `${probText} — 우산을 챙기고 스웨이드 소재는 피하세요`, emphasis: true });
   }
   if (w.tempMax - w.tempMin >= 10) {
     advice.push({ id: 'gap', text: `일교차 ${Math.round(w.tempMax - w.tempMin)}℃ — 걸치고 벗기 쉬운 겉옷으로 레이어링하세요`, emphasis: false });

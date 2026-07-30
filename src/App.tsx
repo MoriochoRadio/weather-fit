@@ -1,15 +1,16 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { City, StyleId, ToneFilter, WeatherSummary } from './types';
-import { DEFAULT_CITY, getCurrentPosition, loadSavedCity, saveCity } from './services/geo';
+import { DEFAULT_CITY, getCurrentPosition, loadFavorites, loadSavedCity, saveCity, toggleFavorite } from './services/geo';
 import { fetchWeather } from './services/weather';
 import { buildAdvice, recommend, recommendAlternates } from './engine/recommend';
 import { STYLE_LABELS } from './data/outfits';
 import WeatherCard from './components/WeatherCard';
 import DayBrief from './components/DayBrief';
 import AdviceList from './components/AdviceList';
-import StyleTabs from './components/StyleTabs';
+import StyleTabs, { styleTabId } from './components/StyleTabs';
 import OutfitCard from './components/OutfitCard';
-import RegionPicker from './components/RegionPicker';
+import RegionPicker, { REGION_PICKER_ID } from './components/RegionPicker';
+import FavoriteBar from './components/FavoriteBar';
 
 function todayKey(): string {
   const d = new Date();
@@ -28,19 +29,39 @@ export default function App() {
   const [city, setCity] = useState<City | null>(null);
   const [weather, setWeather] = useState<WeatherSummary | null>(null);
   const [state, setState] = useState<LoadState>('loading');
+  const [errorMessage, setErrorMessage] = useState('날씨를 불러오지 못했어요. 네트워크 연결을 확인해 주세요.');
   const [style, setStyle] = useState<StyleId>('oldmoney');
   const [tone, setTone] = useState<ToneFilter>('all');
   const [searchOpen, setSearchOpen] = useState(false);
   const [showAlternates, setShowAlternates] = useState(false);
+  const [favorites, setFavorites] = useState<City[]>(() => loadFavorites());
+  const abortRef = useRef<AbortController | null>(null);
+  const searchTriggerRef = useRef<HTMLButtonElement>(null);
+
+  const closeSearch = useCallback(() => {
+    setSearchOpen(false);
+    searchTriggerRef.current?.focus();
+  }, []);
 
   const load = useCallback(async (target: City) => {
+    // 이전 요청이 아직 진행 중이면 취소 — 지역을 빠르게 바꿀 때 늦게 도착한 응답이 최신 화면을 덮어쓰는 것을 방지
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     setState('loading');
     try {
-      const w = await fetchWeather(target.latitude, target.longitude, target.name);
+      const w = await fetchWeather(target.latitude, target.longitude, target.name, controller.signal);
       setCity(target);
       setWeather(w);
       setState('ready');
-    } catch {
+    } catch (err) {
+      if (controller.signal.aborted) return; // 더 최신 요청으로 대체됨 — 조용히 무시
+      setErrorMessage(
+        err instanceof DOMException && err.name === 'TimeoutError'
+          ? '날씨를 불러오는 데 시간이 너무 오래 걸려요. 네트워크 상태를 확인하고 다시 시도해 주세요.'
+          : '날씨를 불러오지 못했어요. 네트워크 연결을 확인해 주세요.',
+      );
       setState('error');
     }
   }, []);
@@ -57,10 +78,22 @@ export default function App() {
     })();
   }, [load]);
 
+  const selectCity = useCallback(
+    (c: City) => {
+      saveCity(c);
+      void load(c);
+    },
+    [load],
+  );
+
   const handleSelectCity = (c: City) => {
-    saveCity(c);
-    setSearchOpen(false);
-    void load(c);
+    selectCity(c);
+    closeSearch();
+  };
+
+  const handleToggleFavorite = () => {
+    if (!city) return;
+    setFavorites((prev) => toggleFavorite(city, prev));
   };
 
   const dateKey = todayKey();
@@ -81,7 +114,14 @@ export default function App() {
         <div className="masthead-top">
           <h1 className="brand">WeatherFit</h1>
           <div className="masthead-actions">
-            <button type="button" className="text-btn" onClick={() => setSearchOpen((v) => !v)}>
+            <button
+              ref={searchTriggerRef}
+              type="button"
+              className="text-btn"
+              aria-expanded={searchOpen}
+              aria-controls={REGION_PICKER_ID}
+              onClick={() => setSearchOpen((v) => !v)}
+            >
               지역 변경
             </button>
             <button type="button" className="text-btn" onClick={() => city && load(city)} disabled={!city}>
@@ -92,9 +132,10 @@ export default function App() {
         <p className="dateline">
           {formatDate()} · {city ? `${city.name}${city.region && city.region !== city.name ? ` (${city.region})` : ''}` : '위치 확인 중'}
         </p>
+        <FavoriteBar favorites={favorites} current={city} onSelect={selectCity} onToggleCurrent={handleToggleFavorite} />
       </header>
 
-      <RegionPicker open={searchOpen} current={city} onSelect={handleSelectCity} onClose={() => setSearchOpen(false)} />
+      <RegionPicker open={searchOpen} current={city} onSelect={handleSelectCity} onClose={closeSearch} />
 
       <main>
         {state === 'loading' && (
@@ -103,8 +144,8 @@ export default function App() {
           </p>
         )}
         {state === 'error' && (
-          <div className="status error">
-            <p>날씨를 불러오지 못했어요. 네트워크 연결을 확인해 주세요.</p>
+          <div className="status error" role="alert">
+            <p>{errorMessage}</p>
             <button type="button" className="text-btn" onClick={() => load(city ?? DEFAULT_CITY)}>
               다시 시도
             </button>
@@ -142,6 +183,7 @@ export default function App() {
                   </div>
                 </div>
               </div>
+              <div id="outfit-panel" role="tabpanel" aria-labelledby={styleTabId(style)} tabIndex={-1}>
               {recs.length > 0 ? (
                 <div className="outfit-list">
                   {recs.map((rec, i) => (
@@ -197,6 +239,7 @@ export default function App() {
                   )}
                 </div>
               )}
+              </div>
             </section>
           </>
         )}

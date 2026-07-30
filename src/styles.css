@@ -2,7 +2,7 @@
   --paper: #eef0f2;
   --card: #f7f9fa;
   --ink: #171b20;
-  --muted: rgba(23, 27, 32, 0.6);
+  --muted: rgba(23, 27, 32, 0.64);
   --line: rgba(23, 27, 32, 0.14);
   --line-strong: rgba(23, 27, 32, 0.5);
   --accent: #33506b;
@@ -159,6 +159,24 @@ button {
 .text-btn:disabled {
   opacity: 0.4;
   cursor: default;
+}
+
+.favorites {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.favorites-tabs {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.fav-toggle {
+  padding: 6px 4px;
+  font-size: 12px;
 }
 
 .dateline {
@@ -349,7 +367,7 @@ button {
 
 .spark-label {
   font-family: var(--mono);
-  font-size: 9px;
+  font-size: 10px;
   fill: var(--muted);
 }
 
@@ -534,11 +552,7 @@ button {
   width: 78px;
   height: auto;
   align-self: stretch;
-}
-
-.sil-shape {
-  stroke: var(--line-strong);
-  stroke-width: 1.2;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.18));
 }
 
 .outfit-items {

@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import type { City } from '../types';
 import { PROVINCES, cityKey, findCityByKey } from '../data/regions';
 import { getCurrentPosition } from '../services/geo';
@@ -9,7 +10,16 @@ interface Props {
   onClose: () => void;
 }
 
+export const REGION_PICKER_ID = 'region-picker';
+
 export default function RegionPicker({ open, current, onSelect, onClose }: Props) {
+  const selectRef = useRef<HTMLSelectElement>(null);
+
+  // 패널이 열리면 곧바로 select로 포커스를 옮긴다 (키보드/스크린리더 사용자가 트리거 버튼 뒤를 헤매지 않도록)
+  useEffect(() => {
+    selectRef.current?.focus();
+  }, []);
+
   if (!open) return null;
 
   const currentKey = current ? cityKey(current) : '';
@@ -21,13 +31,20 @@ export default function RegionPicker({ open, current, onSelect, onClose }: Props
   };
 
   return (
-    <div className="picker">
+    <div
+      id={REGION_PICKER_ID}
+      className="picker"
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') onClose();
+      }}
+    >
       <div className="picker-row">
         <label className="picker-label" htmlFor="region-select">
           지역
         </label>
         <select
           id="region-select"
+          ref={selectRef}
           value={knownKey}
           onChange={(e) => {
             const city = findCityByKey(e.target.value);

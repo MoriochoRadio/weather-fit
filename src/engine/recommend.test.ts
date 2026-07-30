@@ -35,6 +35,12 @@ describe('tempBand 경계값', () => {
   ])('%f℃ → %s', (temp, band) => {
     expect(tempBand(temp)).toBe(band);
   });
+
+  it('NaN/Infinity 입력이면 조용히 "hot"으로 새지 않고 mild로 폴백한다 (QA: 이상값 방어)', () => {
+    expect(tempBand(NaN)).toBe('mild');
+    expect(tempBand(Infinity)).toBe('mild');
+    expect(tempBand(-Infinity)).toBe('mild');
+  });
 });
 
 describe('referenceTemp', () => {
@@ -106,6 +112,18 @@ describe('데이터 커버리지 (FR-05)', () => {
 
   it('웜톤 코디도 존재한다 (FR-14 개정)', () => {
     expect(OUTFITS.filter((o) => o.tone === 'warm').length).toBeGreaterThanOrEqual(10);
+  });
+
+  it('웜톤만으로도 모든 스타일×기온대에 코디가 2개 이상 (QA: 웜톤 필터 시 "추천 없음" 방지)', () => {
+    const BANDS: TempBand[] = ['freezing', 'cold', 'chilly', 'mild', 'warm', 'hot'];
+    for (const style of STYLE_ORDER) {
+      for (const band of BANDS) {
+        const count = OUTFITS.filter(
+          (o) => o.style === style && o.tone === 'warm' && o.bands.includes(band),
+        ).length;
+        expect(count, `${style} × ${band}`).toBeGreaterThanOrEqual(2);
+      }
+    }
   });
 });
 
@@ -256,5 +274,12 @@ describe('buildAdvice', () => {
   });
   it('평온한 날씨엔 조언 없음', () => {
     expect(buildAdvice(makeWeather())).toEqual([]);
+  });
+  it('precipProb가 결측(NaN)이어도 날씨 코드로 비가 감지되면 "NaN%"를 노출하지 않는다 (QA: 이상값 방어)', () => {
+    const advice = buildAdvice(makeWeather({ precipProb: NaN, weatherCode: 61 }));
+    const rain = advice.find((a) => a.id === 'rain');
+    expect(rain).toBeDefined();
+    expect(rain!.text).not.toContain('NaN');
+    expect(rain!.text).toContain('비 예보');
   });
 });

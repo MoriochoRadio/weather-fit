@@ -59,92 +59,114 @@ export function pickIcon(field: keyof OutfitItems, text: string): IconId {
 const PATHS: Record<IconId, JSX.Element> = {
   coat: (
     <>
-      <path d="M7 3h6l3 2v12h-4V9M7 3 4 5v12h4V9m2 8h0" />
-      <path d="M10 3v6" />
+      <path d="M7.5 2.2 6 4l-1.5 1v11.5H7V8.5l.9 9H12l.9-9v8h2.6V5l-1.5-1-1.5-1.8Z" />
+      <path d="M7.5 2.2 10 5l2.5-2.8" />
+      <path d="M10 5v10.5" />
     </>
   ),
   puffer: (
     <>
-      <path d="M7 3h6l3 2.5V17h-4.5V8h-3v9H4V5.5L7 3Z" />
-      <path d="M4.5 9h4m3 0h4M4.5 13h4m3 0h4" />
+      <path d="M7.5 2.2 6 4l-1.7 1.1V17.8h4.4V9.3h2.6v8.5h4.4V5.1L14 4l-1.5-1.8Z" />
+      <path d="M7.5 2.2 10 4.6l2.5-2.4" />
+      <path d="M4.6 8.4h4.1m2.6 0h4.1M4.6 12h4.1m2.6 0h4.1" />
     </>
   ),
   jacket: (
     <>
-      <path d="M7 3h6l3 2v7h-3v5H7v-5H4V5l3-2Z" />
-      <path d="M10 3v7" />
+      <path d="M7.5 2.2 6 4l-2 1.1v7.2h2.7V17h6.6v-4.7H16V5.1L14 4l-1.5-1.8Z" />
+      <path d="M7.5 2.2 10 4.6l2.5-2.4" />
+      <path d="M10 4.6v6.6" />
     </>
   ),
   knit: (
     <>
-      <path d="M7 3h6l3 2v5h-3v7H7v-7H4V5l3-2Z" />
-      <path d="M8 3c0 1 .9 2 2 2s2-1 2-2" />
+      <path d="M7 2.6h6l2.4 1.8v4.8h-2.6V17H7.2V9.2H4.6V4.4Z" />
+      <path d="M8 2.6c0 1.2.9 2.1 2 2.1s2-.9 2-2.1" />
+      <path d="M4.6 9.2h2.6m5.8 0h2.6" />
     </>
   ),
   shirt: (
     <>
-      <path d="M7 3h6l3 2v5h-3v7H7v-7H4V5l3-2Z" />
-      <path d="M7 3l3 3 3-3" />
-      <path d="M10 6v11" />
+      <path d="M7 2.6h6l2.4 1.8v4.8h-2.6V17H7.2V9.2H4.6V4.4Z" />
+      <path d="M7 2.6l3 3 3-3" />
+      <path d="M10 5.6v11" />
+      <circle cx="10" cy="9" r=".55" fill="currentColor" stroke="none" />
+      <circle cx="10" cy="12" r=".55" fill="currentColor" stroke="none" />
     </>
   ),
   tshirt: (
     <>
-      <path d="M7 3h6l4 3-2 3-2-1v9H7V8L5 9 3 6l4-3Z" />
-      <path d="M8 3c0 1 .9 2 2 2s2-1 2-2" />
+      <path d="M7 2.8h6l3.4 2.6-1.7 2.7L12 7v10H8V7L5.3 8.1 3.6 5.4Z" />
+      <path d="M8 2.8c0 1.1.9 2 2 2s2-.9 2-2" />
     </>
   ),
   longsleeve: (
     <>
-      <path d="M7 3h6l3 2v8h-3v4H7v-4H4V5l3-2Z" />
-      <path d="M8 3c0 1 .9 2 2 2s2-1 2-2" />
+      <path d="M7 2.6h6l2.4 1.8v6.6h-2.6V17H7.2v-6H4.6V4.4Z" />
+      <path d="M8 2.6c0 1.2.9 2.1 2 2.1s2-.9 2-2.1" />
     </>
   ),
-  pants: <path d="M6 3h8l1 14h-4l-1-8-1 8H5L6 3Zm0 3h8" />,
-  shorts: <path d="M6 4h8l1 7h-4.5L10 8l-.5 3H5L6 4Zm0 2h8" />,
-  'dress-shoe': <path d="M3 14c0-1 .5-4 .5-6h4L9 10c3 1 8 1.5 8 4v1H3v-1Zm0-1h14" />,
+  pants: <path d="M6.2 2.6h7.6l.6 6.6.9 8.2h-3.4L10.6 9l-.6 8.4H6.6l.9-8.2Z M6.2 5.4h7.6" />,
+  shorts: <path d="M6.4 3.2h7.2l.7 5.6h-3.7l-.6 2.6-.6-2.6H5.7Z M6.4 5.6h7.2" />,
+  'dress-shoe': (
+    <>
+      <path d="M3.4 15c.1-1.4.5-3 .5-5.4h3.4l1.1 2c2.6.5 7.6.9 8.2 2.6.2.6-.1 1.2-.8 1.2H3.6c-.2 0-.3-.2-.2-.4Z" />
+      <path d="M4.3 11.4h3.6M6 9.6l1.4 2" />
+    </>
+  ),
   sneaker: (
     <>
-      <path d="M3 14c0-1 .5-3.5.5-5.5L7 9l2.5 2c3 1 7.5.8 7.5 3v1H3v-1Z" />
-      <path d="m8 10-1 1.5M10.5 11l-1 1.5M3 13.5h14" />
+      <path d="M3.4 15c0-1.4.5-3.4.5-5.6l3.3.3 2 2.1c2.6.4 7.7.6 8.2 2.4.2.6-.1 1.3-.8 1.3H3.6c-.2 0-.3-.2-.2-.5Z" />
+      <path d="m7.6 10.3-1.1 1.7M10 10.9l-1.1 1.7M3.9 9.5l3.3.4" />
+      <path d="M3.5 15h13.6" />
     </>
   ),
-  boot: <path d="M6 3h6v7c3 .8 5 1.5 5 4v3H6.5L6 14l1-2V3Zm0 14H4.5c-.8 0-1.5-.7-1.5-1.5S3.7 14 4.5 14H6" />,
+  boot: (
+    <>
+      <path d="M7 2.4h5.4v6.7c1.1.3 4.8 1.1 4.8 3.5v3.4H7.4L7 14.3l1-1.7V2.4Z" />
+      <path d="M7 15.4H4.6c-.9 0-1.6-.6-1.6-1.4s.7-1.4 1.6-1.4H7" />
+      <path d="M7 9.1h5.4" />
+    </>
+  ),
   sandal: (
     <>
-      <path d="M3 14c0-1 .5-4 .5-6h4L9 10c3 1 8 1.5 8 4v1H3v-1Z" />
+      <path d="M3.4 15c.1-1.4.5-3 .5-5.4h3.4l1.1 2c2.6.5 7.6.9 8.2 2.6.2.6-.1 1.2-.8 1.2H3.6c-.2 0-.3-.2-.2-.4Z" />
       <path d="m6 8 2 4m-3.5-2.5L8 8.5" />
     </>
   ),
   cap: (
     <>
-      <path d="M4 11a6 6 0 0 1 12 0v1H4v-1Z" />
-      <path d="M16 12c1.5 0 2.5.7 2.5 1.8 0 .7-.6 1.2-1.4 1.2H8" />
+      <path d="M4 11.4a6 6 0 0 1 12 0v1H4Z" />
+      <path d="M16 12c1.8.1 3 .9 3 2 0 .8-.7 1.3-1.6 1.3H8" />
       <path d="M10 5V3.5" />
+      <circle cx="10" cy="2.4" r=".7" fill="currentColor" stroke="none" />
     </>
   ),
   bag: (
     <>
-      <rect x="4" y="8" width="12" height="9" rx="1" />
-      <path d="M7 8V6a3 3 0 0 1 6 0v2" />
+      <rect x="3.6" y="7.6" width="12.8" height="9.6" rx="1.2" />
+      <path d="M6.8 7.6V5.8a3.2 3.2 0 0 1 6.4 0v1.8" />
+      <path d="M3.6 11.2h12.8" />
     </>
   ),
   watch: (
     <>
-      <circle cx="10" cy="10" r="4.5" />
-      <path d="M10 7.5V10l2 1.5M8 5.5 8.5 2h3L12 5.5M8 14.5 8.5 18h3l.5-3.5" />
+      <circle cx="10" cy="10" r="4.6" />
+      <path d="M10 7.4V10l2 1.3" />
+      <path d="M8.3 5.4 8.6 2h2.8l.3 3.4M8.3 14.6l.3 3.4h2.8l.3-3.4" />
     </>
   ),
   scarf: (
     <>
-      <path d="M5 6c0-1.7 2.2-3 5-3s5 1.3 5 3-2.2 3-5 3" />
-      <path d="M10 9c-2.8 0-5 1.3-5 3v5l3-2 2 2 2-2 3 2v-5" />
+      <path d="M5 5.6c0-1.9 2.2-3.2 5-3.2s5 1.3 5 3.2-2.2 3.2-5 3.2" />
+      <path d="M10 8.8c-2.8 0-5 1.3-5 3.2v5.2l3-2 2 2 2-2 3 2v-5.2" />
     </>
   ),
   acc: (
     <>
-      <circle cx="7" cy="10" r="3.5" />
-      <circle cx="13" cy="10" r="3.5" />
+      <circle cx="7.2" cy="10" r="3.4" />
+      <circle cx="12.8" cy="10" r="3.4" />
+      <path d="M9.6 10h.8" />
     </>
   ),
 };
@@ -164,7 +186,7 @@ export default function ItemIcon({ field, text }: Props) {
       height="18"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.3"
+      strokeWidth="1.4"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
