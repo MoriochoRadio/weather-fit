@@ -1,9 +1,33 @@
 # 02. 설계서 (Design Document)
 
 - **작성일**: 2026-07-27
-- **버전**: 1.0
+- **최초 버전**: 1.0 / **최신 반영**: 1.8
 
-## 1. 시스템 아키텍처
+> **읽는 법** — §1~§10은 v1.0 최초 설계를 그대로 보존한 기록이고, 버전이 올라가며 바뀐 설계는
+> §11부터 버전별로 덧붙였다. 현재 구조가 궁금하면 아래 "현재 아키텍처"와 최신 절(§14)을 먼저 볼 것.
+> 최초 설계와 달라진 대표적인 점: **지오코딩 API는 v1.2에서 걷어내고** 전국 시·군 데이터를 내장했다.
+
+## 현재 아키텍처 (v1.8 기준)
+
+```
+┌──────────────────────────────────────────────────────────┐
+│  브라우저 (React SPA · 정적 호스팅)                        │
+│                                                          │
+│  App ─┬─ services/  weather · airQuality ────────────────│──▶ Open-Meteo (키 없음)
+│       │             geo · prefs · savedOutfits           │
+│       │             wornLog · wardrobe ──────────────────│──▶ localStorage
+│       │             shareImage (SVG→canvas→PNG)          │
+│       ├─ engine/    recommend · briefing                 │  순수 함수 (테스트 집중)
+│       │             silhouette · weatherCodes            │
+│       ├─ data/      outfits · regions · glossary         │  내장 데이터 (네트워크 불필요)
+│       │             colors · clothingPaths               │
+│       └─ components/                                     │
+│                                                          │
+│  sw.js: 해시 자원·폰트=캐시 우선 / HTML·API=네트워크 우선   │
+└──────────────────────────────────────────────────────────┘
+```
+
+## 1. 시스템 아키텍처 (v1.0 최초 설계 — 기록용)
 
 서버 없는 **정적 SPA**. 외부 의존은 Open-Meteo API 두 개뿐이며 API 키가 없다.
 
@@ -29,8 +53,11 @@
 ### 2.1 Open-Meteo Forecast
 `GET https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,weather_code&timezone=auto`
 
-### 2.2 Open-Meteo Geocoding (도시 검색)
+### 2.2 Open-Meteo Geocoding (도시 검색) — **v1.2에서 제거됨**
 `GET https://geocoding-api.open-meteo.com/v1/search?name={query}&count=5&language=ko`
+
+> 한국 전용 서비스로 방향을 잡으면서(FR-02/FR-13) 전국 시·군 161곳을 `data/regions.ts`에 내장하고
+> 이 API 의존을 걷어냈다. 네트워크 호출 하나가 줄고, 검색 결과에 해외 동명 도시가 섞이는 문제도 사라졌다.
 
 ### 2.3 WMO weather_code 매핑
 | 코드 | 상태 | 아이콘 |
