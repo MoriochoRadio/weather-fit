@@ -1,4 +1,5 @@
 import type { WeatherSummary } from '../types';
+import { precipWord } from './weatherCodes';
 
 /**
  * 하루 시간 흐름 브리핑 엔진 (FR-17).
@@ -27,6 +28,9 @@ export interface DayBriefing {
   /** 자연어 브리핑 문장들 */
   lines: string[];
 }
+
+/** 이 시간 이상 이어지는 강수 구간은 시각 범위 대신 "하루 종일"로 표현한다 */
+const ALL_DAY_HOURS = 18;
 
 const SEGMENT_RANGES: Array<[DaySegment['label'], number, number]> = [
   ['아침', 6, 11],
@@ -99,17 +103,21 @@ export function buildBriefing(w: WeatherSummary): DayBriefing | null {
   }
 
   // 활동 시간대(9~21시)와 겹치는 비 구간만 행동 조언으로
+  const word = precipWord(w.weatherCode);
   const activeRain = rainWindows.filter((r) => r.endHour > 9 && r.startHour < 21);
   if (activeRain.length > 0) {
     const first = activeRain[0];
     const span =
-      first.startHour === first.endHour - 1
-        ? `${formatHour(first.startHour)}쯤`
-        : `${formatHour(first.startHour)}~${formatHour(first.endHour)}`;
-    lines.push(`${span} 비 예보(최대 ${Math.round(first.maxProb)}%) — 외출 시 우산을 챙기세요.`);
+      // 장마처럼 하루를 거의 다 덮으면 "밤 12시~밤 12시"처럼 같은 시각이 반복돼 읽히지 않는다 (QA)
+      first.endHour - first.startHour >= ALL_DAY_HOURS
+        ? '하루 종일'
+        : first.startHour === first.endHour - 1
+          ? `${formatHour(first.startHour)}쯤`
+          : `${formatHour(first.startHour)}~${formatHour(first.endHour)}`;
+    lines.push(`${span} ${word} 예보(최대 ${Math.round(first.maxProb)}%) — 외출 시 우산을 챙기세요.`);
   } else if (rainWindows.length > 0) {
     const first = rainWindows[0];
-    lines.push(`${formatHour(first.startHour)}대 비 소식이 있지만 활동 시간대는 대체로 괜찮아요.`);
+    lines.push(`${formatHour(first.startHour)}대 ${word} 소식이 있지만 활동 시간대는 대체로 괜찮아요.`);
   }
 
   return { segments, rainWindows, lines };
@@ -136,7 +144,10 @@ export function tomorrowLine(today: WeatherSummary, tomorrow: NonNullable<Weathe
   if (diff <= -3) line = `내일은 오늘보다 ${Math.abs(diff)}° 낮아요`;
   else if (diff >= 3) line = `내일은 오늘보다 ${diff}° 높아요`;
   else line = '내일도 오늘과 비슷해요';
-  if (Number.isFinite(tomorrow.precipProb) && tomorrow.precipProb >= 50) line += ' — 비 소식이 있어요';
+  // 눈 오는 날 "비 소식이 있어요"라고 안내하던 문제 — 내일 날씨 코드로 낱말을 고른다 (QA)
+  if (Number.isFinite(tomorrow.precipProb) && tomorrow.precipProb >= 50) {
+    line += ` — ${precipWord(tomorrow.weatherCode)} 소식이 있어요`;
+  }
   return line;
 }
 

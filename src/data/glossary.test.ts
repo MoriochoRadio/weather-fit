@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { GLOSSARY, findGlossary } from './glossary';
+import { GLOSSARY, findGlossary, isOwnableItem } from './glossary';
 import { OUTFITS } from './outfits';
 
 describe('GLOSSARY 데이터', () => {
@@ -52,5 +52,23 @@ describe('findGlossary 매칭 규칙', () => {
       const matches = findGlossary(o.items);
       expect(matches.length, `${o.id} (${o.name})`).toBeGreaterThanOrEqual(1);
     }
+  });
+});
+
+describe('isOwnableItem (FR-33)', () => {
+  it('색·핏·디테일 용어에는 "없어요" 토글을 달지 않는다', () => {
+    for (const term of ['차콜', '캐멀', '무광', '테이퍼드', '크루넥', '더블브레스티드']) {
+      expect(isOwnableItem(term), term).toBe(false);
+    }
+  });
+
+  it('실제 옷·원단 용어에는 토글을 단다', () => {
+    for (const term of ['발마칸 코트', '페니 로퍼', '시어서커', '첼시 부츠', '가디건']) {
+      expect(isOwnableItem(term), term).toBe(true);
+    }
+  });
+
+  it('사전에 없는 용어는 기본적으로 허용한다', () => {
+    expect(isOwnableItem('알 수 없는 용어')).toBe(true);
   });
 });

@@ -1,6 +1,7 @@
 import type { Advice, Outfit, StyleId, TempBand, ToneFilter, WeatherSummary } from '../types';
 import { OUTFITS } from '../data/outfits';
 import { daytimeFeels } from './briefing';
+import { RAIN_CODES, SNOW_CODES } from './weatherCodes';
 
 export const BAND_LABELS: Record<TempBand, string> = {
   freezing: '한파',
@@ -37,9 +38,6 @@ export function tempBand(refTemp: number): TempBand {
   if (refTemp < 28) return 'warm';
   return 'hot';
 }
-
-const RAIN_CODES = new Set([51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82, 95, 96, 99]);
-const SNOW_CODES = new Set([71, 73, 75, 77, 85, 86]);
 
 export function isRainy(w: WeatherSummary): boolean {
   return w.precipProb >= 60 || w.precipSum >= 1 || RAIN_CODES.has(w.weatherCode);

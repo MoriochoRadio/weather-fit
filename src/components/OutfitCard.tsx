@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import type { Recommendation } from '../engine/recommend';
-import { findGlossary } from '../data/glossary';
+import { findGlossary, isOwnableItem } from '../data/glossary';
 import { renderOutfitPng } from '../services/shareImage';
 import ItemIcon from './ItemIcon';
 import OutfitSilhouette from './OutfitSilhouette';
@@ -231,7 +231,8 @@ export default function OutfitCard({
                           <span className="glossary-sub">없으면: {g.sub}</span>
                         </>
                       )}
-                      {onToggleMissingTerm && (
+                      {/* 색·핏 같은 용어엔 "없어요"가 성립하지 않으므로 옷에만 버튼을 단다 (FR-33) */}
+                      {onToggleMissingTerm && isOwnableItem(g.term) && (
                         <button
                           type="button"
                           className={missing ? 'glossary-have active' : 'glossary-have'}

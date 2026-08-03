@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { StyleId, TempBand, WeatherSummary } from '../types';
-import { formatHour, yesterdayLine } from './briefing';
+import { buildBriefing, formatHour, tomorrowLine, yesterdayLine } from './briefing';
 import { recommend, referenceTemp } from './recommend';
 import { OUTFITS, STYLE_ORDER } from '../data/outfits';
 
@@ -58,6 +58,37 @@ describe('yesterdayLine (FR-30)', () => {
 
   it('크게 오르면 한 겹 덜라고 말한다', () => {
     expect(yesterdayLine(today(25), { tempMin: 8, tempMax: 17 })).toMatch(/8° 높아요.*한 겹 덜어도/);
+  });
+});
+
+describe('강수 문구 (v1.8 QA)', () => {
+  it('내일이 눈이면 "비 소식"이 아니라 "눈 소식"이라고 한다', () => {
+    const today = { tempMax: -4 } as WeatherSummary;
+    expect(tomorrowLine(today, { tempMin: -14, tempMax: -4, precipProb: 80, weatherCode: 73 })).toContain('눈 소식');
+    expect(tomorrowLine(today, { tempMin: 10, tempMax: 18, precipProb: 80, weatherCode: 61 })).toContain('비 소식');
+  });
+
+  it('강수확률이 낮으면 강수 문구를 붙이지 않는다', () => {
+    const today = { tempMax: 20 } as WeatherSummary;
+    expect(tomorrowLine(today, { tempMin: 10, tempMax: 20, precipProb: 20, weatherCode: 61 })).not.toContain('소식');
+  });
+
+  it('하루 종일 비가 오면 "밤 12시~밤 12시"가 아니라 "하루 종일"로 안내한다', () => {
+    const temps = Array.from({ length: 24 }, () => 18);
+    const w = weatherWithHourly(temps);
+    w.weatherCode = 61;
+    w.hourly!.precipProb = Array.from({ length: 24 }, () => 80);
+    const line = buildBriefing(w)!.lines.find((l) => l.includes('예보'))!;
+    expect(line).toContain('하루 종일');
+    expect(line).not.toContain('밤 12시~밤 12시');
+  });
+
+  it('눈 오는 날 브리핑도 "비 예보"가 아니라 "눈 예보"라고 한다', () => {
+    const w = weatherWithHourly(Array.from({ length: 24 }, () => -5));
+    w.weatherCode = 73;
+    w.hourly!.precipProb = Array.from({ length: 24 }, (_, h) => (h >= 13 && h < 18 ? 80 : 0));
+    const line = buildBriefing(w)!.lines.find((l) => l.includes('예보'))!;
+    expect(line).toContain('눈 예보');
   });
 });
 
