@@ -7,13 +7,16 @@ const STORAGE_KEY = 'weatherfit.city';
 const FAVORITES_KEY = 'weatherfit.favorites';
 
 /**
- * 기본 즐겨찾기 지역 — 시·군 단위인 PROVINCES 데이터보다 세밀한 실생활 지점 3곳
- * (좌표는 위키백과·OpenStreetMap 기준 확인값).
+ * 처음 방문했을 때 보여줄 기본 즐겨찾기.
+ *
+ * 공개 저장소이므로 특정 개인의 생활권이 드러나는 좌표는 두지 않는다 — 대표 도시 세 곳으로만
+ * 시작하고, 실제로 자주 가는 지점은 사용자가 "즐겨찾기 추가"로 직접 채운다(그 값은
+ * localStorage에만 남는다).
  */
 const DEFAULT_FAVORITES: City[] = [
-  { name: '양평역', region: '영등포', latitude: 37.52556, longitude: 126.88611 },
-  { name: '병점', region: '화성', latitude: 37.206806, longitude: 127.033111 },
-  { name: '관저동', region: '대전', latitude: 36.2966447, longitude: 127.3371044 },
+  { name: '서울', region: '서울', latitude: 37.57, longitude: 126.98 },
+  { name: '부산', region: '부산', latitude: 35.18, longitude: 129.08 },
+  { name: '대전', region: '대전', latitude: 36.35, longitude: 127.38 },
 ];
 
 export function loadSavedCity(): City | null {

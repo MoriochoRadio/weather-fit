@@ -16,7 +16,7 @@ function createMockStorage(): Storage {
   } as Storage;
 }
 
-const YANGPYEONG: City = { name: '양평역', region: '영등포', latitude: 37.52556, longitude: 126.88611 };
+const SAMPLE: City = { name: '강릉', region: '강원', latitude: 37.75, longitude: 128.9 };
 
 describe('geo favorites', () => {
   beforeEach(() => {
@@ -29,12 +29,12 @@ describe('geo favorites', () => {
   it('저장된 적 없으면 기본 즐겨찾기 3곳으로 시작한다', () => {
     const favs = loadFavorites();
     expect(favs.length).toBe(3);
-    expect(favs.map((f) => f.name)).toEqual(['양평역', '병점', '관저동']);
+    expect(favs.map((f) => f.name)).toEqual(['서울', '부산', '대전']);
   });
 
   it('저장된 목록이 있으면 그걸 반환한다', () => {
-    saveFavorites([YANGPYEONG]);
-    expect(loadFavorites()).toEqual([YANGPYEONG]);
+    saveFavorites([SAMPLE]);
+    expect(loadFavorites()).toEqual([SAMPLE]);
   });
 
   it('손상된 JSON이면 기본값으로 폴백한다', () => {
@@ -48,23 +48,23 @@ describe('geo favorites', () => {
   });
 
   it('배열 안에 유효하지 않은 항목은 걸러낸다', () => {
-    localStorage.setItem('weatherfit.favorites', JSON.stringify([YANGPYEONG, { name: '이름만있음' }, null]));
-    expect(loadFavorites()).toEqual([YANGPYEONG]);
+    localStorage.setItem('weatherfit.favorites', JSON.stringify([SAMPLE, { name: '이름만있음' }, null]));
+    expect(loadFavorites()).toEqual([SAMPLE]);
   });
 
   it('isFavorite: 이름·지역이 같으면 true', () => {
-    expect(isFavorite(YANGPYEONG, [YANGPYEONG])).toBe(true);
-    expect(isFavorite({ ...YANGPYEONG, name: '다른역' }, [YANGPYEONG])).toBe(false);
+    expect(isFavorite(SAMPLE, [SAMPLE])).toBe(true);
+    expect(isFavorite({ ...SAMPLE, name: '다른역' }, [SAMPLE])).toBe(false);
   });
 
   it('toggleFavorite: 없으면 추가하고 저장한다', () => {
-    const next = toggleFavorite(YANGPYEONG, []);
-    expect(next).toEqual([YANGPYEONG]);
-    expect(loadFavorites()).toEqual([YANGPYEONG]);
+    const next = toggleFavorite(SAMPLE, []);
+    expect(next).toEqual([SAMPLE]);
+    expect(loadFavorites()).toEqual([SAMPLE]);
   });
 
   it('toggleFavorite: 있으면 제거하고 저장한다', () => {
-    const next = toggleFavorite(YANGPYEONG, [YANGPYEONG]);
+    const next = toggleFavorite(SAMPLE, [SAMPLE]);
     expect(next).toEqual([]);
     expect(loadFavorites()).toEqual([]);
   });
