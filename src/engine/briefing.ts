@@ -44,12 +44,15 @@ function inRange(hours: number[], values: number[], from: number, to: number): n
 }
 
 export function formatHour(h: number): string {
-  if (h === 12) return '낮 12시';
-  if (h === 0) return '밤 12시';
-  if (h < 6) return `새벽 ${h}시`;
-  if (h < 12) return `오전 ${h}시`;
-  if (h < 18) return `오후 ${h - 12}시`;
-  return `저녁 ${h - 12}시`;
+  // 비 구간의 끝시각은 24가 될 수 있다(23시까지 비) — 24를 그냥 두면 "저녁 12시"가 되므로 자정으로 접는다 (QA)
+  const n = ((h % 24) + 24) % 24;
+  if (n === 12) return '낮 12시';
+  if (n === 0) return '밤 12시';
+  if (n < 6) return `새벽 ${n}시`;
+  if (n < 12) return `오전 ${n}시`;
+  if (n < 18) return `오후 ${n - 12}시`;
+  if (n < 21) return `저녁 ${n - 12}시`;
+  return `밤 ${n - 12}시`;
 }
 
 /** 강수확률 ≥ threshold가 연속되는 시간 구간 탐지 */
@@ -112,6 +115,20 @@ export function buildBriefing(w: WeatherSummary): DayBriefing | null {
   return { segments, rainWindows, lines };
 }
 
+/**
+ * 어제 대비 한 줄 (FR-30).
+ * 사람은 절대 기온보다 "어제 입은 것"을 기준으로 옷을 고르므로, 몇 도 차이인지와
+ * 한 겹을 더할지 뺄지를 함께 알려 준다. 차이가 작으면 굳이 말하지 않는다(잡음).
+ */
+export function yesterdayLine(today: WeatherSummary, yesterday: NonNullable<WeatherSummary['yesterday']>): string | null {
+  const diff = Math.round(today.tempMax - yesterday.tempMax);
+  if (Math.abs(diff) < 3) return null;
+  if (diff >= 5) return `어제보다 ${diff}° 높아요 — 어제 입은 것보다 한 겹 덜어도 됩니다`;
+  if (diff > 0) return `어제보다 ${diff}° 높아요 — 어제와 비슷하게 입되 겉옷은 가볍게`;
+  if (diff <= -5) return `어제보다 ${Math.abs(diff)}° 낮아요 — 어제 입은 것보다 한 겹 더 챙기세요`;
+  return `어제보다 ${Math.abs(diff)}° 낮아요 — 어제와 비슷하게 입되 겉옷을 하나 더`;
+}
+
 /** 내일 미리보기 한 줄 — 오늘 최고기온 대비 몇 도 차이인지, 비 소식이 있는지 (FR-24) */
 export function tomorrowLine(today: WeatherSummary, tomorrow: NonNullable<WeatherSummary['tomorrow']>): string {
   const diff = Math.round(tomorrow.tempMax - today.tempMax);
@@ -123,9 +140,24 @@ export function tomorrowLine(today: WeatherSummary, tomorrow: NonNullable<Weathe
   return line;
 }
 
-/** 활동 시간대(9~21시) 평균 체감 — 하루 전체에 적합한 추천 기준 (FR-17) */
-export function daytimeFeels(w: WeatherSummary): number | null {
+/**
+ * 추천 기준이 될 평균 체감 (FR-17, FR-28).
+ *
+ * 기본은 활동 시간대(9~21시)지만, 이미 그 시간이 지나가고 있으면 "앞으로 남은 시간"만 본다 —
+ * 저녁 9시에 열었는데 한낮 최고기온 기준으로 옷을 추천하던 문제 때문 (QA).
+ * 밤 9시를 넘겨 오늘 남은 시간이 거의 없으면 마지막 3시간으로 버틴다.
+ *
+ * @param nowHour 지금 시각(0~23). 넘기지 않으면 하루 전체(9~21시) 기준 — 순수 함수로 테스트하기 위해 주입식으로 둔다.
+ */
+export function daytimeFeels(w: WeatherSummary, nowHour?: number): number | null {
   const h = w.hourly;
   if (!h || h.hours.length === 0) return null;
-  return mean(inRange(h.hours, h.feelsLike, 9, 21));
+  if (nowHour === undefined) return mean(inRange(h.hours, h.feelsLike, 9, 21));
+
+  const from = Math.min(Math.max(nowHour, 9), 21);
+  const remaining = mean(inRange(h.hours, h.feelsLike, from, 21));
+  if (remaining !== null) return remaining;
+  // 21시 이후 — 남은 밤 시간대로
+  const night = mean(inRange(h.hours, h.feelsLike, Math.max(nowHour, 21), 24));
+  return night ?? mean(inRange(h.hours, h.feelsLike, 9, 21));
 }

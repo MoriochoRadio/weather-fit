@@ -1,19 +1,27 @@
 import type { OutfitItems } from '../types';
 
 export type IconId =
+  // 아우터
   | 'coat'
   | 'puffer'
   | 'jacket'
+  | 'cardigan'
+  | 'shacket'
+  // 상의
+  | 'suit'
   | 'knit'
   | 'shirt'
   | 'tshirt'
   | 'longsleeve'
+  // 하의
   | 'pants'
   | 'shorts'
+  // 신발
   | 'dress-shoe'
   | 'sneaker'
   | 'boot'
   | 'sandal'
+  // 액세서리
   | 'cap'
   | 'bag'
   | 'watch'
@@ -24,21 +32,41 @@ export type IconId =
   | 'umbrella'
   | 'acc';
 
+/** 액세서리 문구 → 아이콘. 아래 배열 순서가 아니라 "문구에 먼저 나온 것"이 이긴다 */
+const ACC_RULES: Array<[IconId, string[]]> = [
+  ['cap', ['캡', '햇', '비니', '모자']],
+  ['bag', ['백', '토트', '사코슈', '브리프케이스', '크로스']],
+  ['watch', ['시계']],
+  ['scarf', ['머플러', '스카프']],
+  ['umbrella', ['우산']],
+  ['tie', ['타이']],
+  ['glove', ['장갑']],
+  ['belt', ['벨트']],
+];
+
 /**
  * 아이템 텍스트 키워드 → 아이콘 매핑 (FR-16).
- * 먼저 매칭되는 규칙이 이긴다 — 구체적인 키워드를 앞에 둘 것.
+ * 액세서리가 "없음…"으로 시작하면 표시할 물건이 없다는 뜻이므로 null을 반환한다
+ * (QA: "없음 — 비움이 포인트"인데 안경 아이콘이 붙던 문제).
  */
-export function pickIcon(field: keyof OutfitItems, text: string): IconId {
+export function pickIcon(field: keyof OutfitItems, text: string): IconId | null {
   const has = (...keys: string[]) => keys.some((k) => text.includes(k));
   switch (field) {
     case 'outer':
-      if (has('패딩', '다운')) return 'puffer';
+      if (has('패딩', '다운', '파카')) return 'puffer';
       if (has('코트', '트렌치', '발마칸', '맥코트', '체스터필드')) return 'coat';
-      if (has('가디건', '니트')) return 'knit';
-      if (has('셔츠', '셔켓')) return 'shirt';
+      if (has('가디건')) return 'cardigan';
+      if (has('셔켓')) return 'shacket';
+      // 니트 베스트처럼 걸쳐 입는 니트류는 가디건 모양이 가장 가깝다
+      if (has('니트', '베스트')) return 'cardigan';
+      if (has('셔츠')) return 'shacket';
       return 'jacket';
     case 'top':
-      if (has('반팔', '피케 폴로')) return 'tshirt';
+      // 수트·블레이저가 가장 바깥에 보이는 층이므로 안에 받쳐 입은 셔츠·니트보다 우선한다
+      // (QA: "수트 + 니트 타이"가 니트로, "수트 + 셔츠"가 셔츠로 판정되던 문제)
+      if (has('수트', '블레이저', '턱시도')) return 'suit';
+      // '티셔츠'는 '셔츠'를 포함하므로 셔츠 검사보다 먼저 걸러야 한다 (QA)
+      if (has('반팔', '피케 폴로', '티셔츠')) return 'tshirt';
       if (has('니트', '터틀넥', '맨투맨', '후디', '스웻', '가디건')) return 'knit';
       if (has('셔츠')) return 'shirt';
       return 'longsleeve';
@@ -50,48 +78,83 @@ export function pickIcon(field: keyof OutfitItems, text: string): IconId {
       if (has('샌들')) return 'sandal';
       if (has('스니커', '트레이너', '슬립온', '운동화')) return 'sneaker';
       return 'dress-shoe';
-    case 'acc':
-      if (has('캡', '햇', '비니', '모자')) return 'cap';
-      if (has('백', '토트', '사코슈', '브리프케이스', '크로스')) return 'bag';
-      if (has('시계')) return 'watch';
-      if (has('머플러', '스카프')) return 'scarf';
-      // QA: 벨트·장갑·타이·우산이 전부 뭉뚱그려 안경 모양(기본 acc)으로 나오던 것을 세분화
-      if (has('우산')) return 'umbrella';
-      if (has('타이')) return 'tie';
-      if (has('장갑')) return 'glove';
-      if (has('벨트')) return 'belt';
-      return 'acc';
+    case 'acc': {
+      if (text.startsWith('없음')) return null;
+      let best: IconId | null = null;
+      let bestPos = Infinity;
+      for (const [id, keys] of ACC_RULES) {
+        for (const k of keys) {
+          const pos = text.indexOf(k);
+          if (pos >= 0 && pos < bestPos) {
+            bestPos = pos;
+            best = id;
+          }
+        }
+      }
+      return best ?? 'acc';
+    }
   }
 }
 
-/** 20×20 라인 아이콘 — stroke가 currentColor라 테마 색을 그대로 따른다 */
+/**
+ * 20×20 라인 아이콘 — stroke가 currentColor라 테마 색을 그대로 따른다.
+ * 작은 크기에서 서로 뭉개지지 않도록 종류마다 실루엣이나 디테일을 확실히 다르게 둔다
+ * (QA: 구두/샌들이 같은 밑그림 + 사선 2개 차이라 18px에서 구분 불가했음).
+ */
 const PATHS: Record<IconId, JSX.Element> = {
   coat: (
     <>
-      <path d="M7.5 2.2 6 4l-1.5 1v11.5H7V8.5l.9 9H12l.9-9v8h2.6V5l-1.5-1-1.5-1.8Z" />
-      <path d="M7.5 2.2 10 5l2.5-2.8" />
-      <path d="M10 5v10.5" />
+      <path d="M7.4 2.2 5.8 3.9 4.3 5v12.6h2.9V8.2h5.6v9.4h2.9V5l-1.5-1.1-1.6-1.7Z" />
+      <path d="M7.4 2.2 10 6.4l2.6-4.2" />
+      <path d="M10 6.4v11.2" />
     </>
   ),
   puffer: (
     <>
-      <path d="M7.5 2.2 6 4l-1.7 1.1V17.8h4.4V9.3h2.6v8.5h4.4V5.1L14 4l-1.5-1.8Z" />
-      <path d="M7.5 2.2 10 4.6l2.5-2.4" />
-      <path d="M4.6 8.4h4.1m2.6 0h4.1M4.6 12h4.1m2.6 0h4.1" />
+      <path d="M7.5 2.2 6 3.9 4.4 5.1v11.7h4.2V9.1h2.8v7.7h4.2V5.1L14 3.9l-1.5-1.7Z" />
+      <path d="M7.5 2.2 10 4.4l2.5-2.2" />
+      <path d="M4.4 7.6h4.2m2.8 0h4.2M4.4 10.8h4.2m2.8 0h4.2M4.4 14h4.2m2.8 0h4.2" />
     </>
   ),
   jacket: (
     <>
-      <path d="M7.5 2.2 6 4l-2 1.1v7.2h2.7V17h6.6v-4.7H16V5.1L14 4l-1.5-1.8Z" />
-      <path d="M7.5 2.2 10 4.6l2.5-2.4" />
-      <path d="M10 4.6v6.6" />
+      <path d="M7.5 2.2 6 3.9 4.2 5.1v6.6h2.8v3.6h6v-3.6h2.8V5.1L14 3.9l-1.5-1.7Z" />
+      <path d="M7.5 2.2 10 4.4l2.5-2.2" />
+      <path d="M7 13.6h6" />
+      <path d="M10 4.4v10.9" />
+    </>
+  ),
+  cardigan: (
+    <>
+      <path d="M7.2 2.4 5.6 4 4.2 5.2v11.2h3V8.6h5.6v7.8h3V5.2L14.4 4l-1.6-1.6Z" />
+      <path d="M7.2 2.4 10 5.9l2.8-3.5" />
+      <path d="M10 5.9v10.5" />
+      <circle cx="10" cy="9.2" r=".6" fill="currentColor" stroke="none" />
+      <circle cx="10" cy="12.4" r=".6" fill="currentColor" stroke="none" />
+    </>
+  ),
+  shacket: (
+    <>
+      <path d="M7.2 2.4 5.6 4 4.2 5.2v11.2h3V8.6h5.6v7.8h3V5.2L14.4 4l-1.6-1.6Z" />
+      <path d="M7.2 2.4 10 4.9l2.8-2.5" />
+      <path d="M10 4.9v11.5" />
+      <path d="M5.9 7.6h2.3v2.2H5.9Zm5.9 0h2.3v2.2h-2.3Z" />
+    </>
+  ),
+  suit: (
+    <>
+      <path d="M7 2.5h6l2.4 1.8v6.6h-2.6v6.6H7.2v-6.6H4.6V4.3Z" />
+      <path d="M7 2.5 10 7l3-4.5" />
+      <path d="M10 7v10.5" />
+      <path d="M6.6 11.4h2.6" />
     </>
   ),
   knit: (
     <>
-      <path d="M7 2.6h6l2.4 1.8v4.8h-2.6V17H7.2V9.2H4.6V4.4Z" />
+      <path d="M7 2.6h6l2.4 1.8v5.2h-2.6v7.9H7.2V9.6H4.6V4.4Z" />
       <path d="M8 2.6c0 1.2.9 2.1 2 2.1s2-.9 2-2.1" />
-      <path d="M4.6 9.2h2.6m5.8 0h2.6" />
+      <path d="M4.6 8.6h2.6m5.6 0h2.6" />
+      <path d="M7.2 15.2h5.6" />
     </>
   ),
   shirt: (
@@ -115,8 +178,19 @@ const PATHS: Record<IconId, JSX.Element> = {
       <path d="M8 2.6c0 1.2.9 2.1 2 2.1s2-.9 2-2.1" />
     </>
   ),
-  pants: <path d="M6.2 2.6h7.6l.6 6.6.9 8.2h-3.4L10.6 9l-.6 8.4H6.6l.9-8.2Z M6.2 5.4h7.6" />,
-  shorts: <path d="M6.4 3.2h7.2l.7 5.6h-3.7l-.6 2.6-.6-2.6H5.7Z M6.4 5.6h7.2" />,
+  // 바지·반바지는 같은 작도법(허리 → 밑단 → 가랑이)으로 그려 길이만 다르게 둔다
+  pants: (
+    <>
+      <path d="M5.8 2.8h8.4l1.2 14.6h-3.7L10 8.4l-1.7 9H4.6Z" />
+      <path d="M5.9 4.8h8.2" />
+    </>
+  ),
+  shorts: (
+    <>
+      <path d="M5.6 3.6h8.8l1 9.4h-3.6L10 8.6l-1.8 4.4H4.6Z" />
+      <path d="M5.7 5.7h8.6" />
+    </>
+  ),
   'dress-shoe': (
     <>
       <path d="M3.4 15c.1-1.4.5-3 .5-5.4h3.4l1.1 2c2.6.5 7.6.9 8.2 2.6.2.6-.1 1.2-.8 1.2H3.6c-.2 0-.3-.2-.2-.4Z" />
@@ -137,10 +211,12 @@ const PATHS: Record<IconId, JSX.Element> = {
       <path d="M7 9.1h5.4" />
     </>
   ),
+  // 발등이 트인 밑창 + 스트랩 — 구두와 실루엣 자체가 다르다
   sandal: (
     <>
-      <path d="M3.4 15c.1-1.4.5-3 .5-5.4h3.4l1.1 2c2.6.5 7.6.9 8.2 2.6.2.6-.1 1.2-.8 1.2H3.6c-.2 0-.3-.2-.2-.4Z" />
-      <path d="m6 8 2 4m-3.5-2.5L8 8.5" />
+      <path d="M3.4 15.6h13.2a1.3 1.3 0 0 0 0-2.6H3.4a1.3 1.3 0 0 0 0 2.6Z" />
+      <path d="M6.4 13 9.6 8l3.2 5" />
+      <path d="M5.4 13 5.9 10.6" />
     </>
   ),
   cap: (
@@ -213,12 +289,13 @@ interface Props {
 
 export default function ItemIcon({ field, text }: Props) {
   const id = pickIcon(field, text);
+  if (!id) return null;
   return (
     <svg
       className="item-icon"
       viewBox="0 0 20 20"
-      width="18"
-      height="18"
+      width="20"
+      height="20"
       fill="none"
       stroke="currentColor"
       strokeWidth="1.4"

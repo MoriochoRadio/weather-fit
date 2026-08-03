@@ -7,24 +7,47 @@ import { fetchAirQuality } from './services/airQuality';
 import { buildAdvice, recommend, recommendAlternates } from './engine/recommend';
 import { OUTFITS, STYLE_LABELS } from './data/outfits';
 import { loadSavedOutfitIds, toggleSavedOutfit } from './services/savedOutfits';
+import { loadWornLog, lastWornDate, recentlyWornIds, toggleWorn } from './services/wornLog';
+import { loadMissingTerms, toggleMissingTerm } from './services/wardrobe';
 import WeatherCard from './components/WeatherCard';
 import DayBrief from './components/DayBrief';
+import YesterdayLine from './components/YesterdayLine';
 import TomorrowPreview from './components/TomorrowPreview';
+import WeekForecast from './components/WeekForecast';
 import AdviceList from './components/AdviceList';
 import StyleTabs, { styleTabId } from './components/StyleTabs';
 import OutfitCard from './components/OutfitCard';
 import RegionPicker, { REGION_PICKER_ID } from './components/RegionPicker';
 import FavoriteBar from './components/FavoriteBar';
 
-function todayKey(): string {
-  const d = new Date();
+function todayKey(d = new Date()): string {
   const mm = String(d.getMonth() + 1).padStart(2, '0');
   const dd = String(d.getDate()).padStart(2, '0');
   return `${d.getFullYear()}-${mm}-${dd}`;
 }
 
-function formatDate(): string {
-  return new Date().toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
+function formatDate(d: Date): string {
+  return d.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
+}
+
+/**
+ * 분 단위로 현재 시각을 따라간다.
+ * 앱을 켜 둔 채 자정을 넘기면 날짜·추천이 어제 것으로 굳어 있었고 (QA), 저녁이 되어도
+ * 한낮 기준 추천이 유지됐다 — 날짜와 "시(hour)"가 바뀔 때만 아래 useMemo들이 다시 계산된다.
+ */
+function useClock(): { dateKey: string; nowHour: number; date: Date } {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => {
+      setNow((prev) => {
+        const next = new Date();
+        // 같은 분이라도 상태를 새로 넣으면 매분 리렌더가 나므로, 시/날짜가 바뀔 때만 교체한다
+        return next.getHours() !== prev.getHours() || next.getDate() !== prev.getDate() ? next : prev;
+      });
+    }, 60_000);
+    return () => clearInterval(id);
+  }, []);
+  return { dateKey: todayKey(now), nowHour: now.getHours(), date: now };
 }
 
 type LoadState = 'loading' | 'ready' | 'error';
@@ -49,6 +72,10 @@ export default function App() {
   const [favorites, setFavorites] = useState<City[]>(() => loadFavorites());
   const [savedOutfitIds, setSavedOutfitIds] = useState<string[]>(() => loadSavedOutfitIds());
   const [showSaved, setShowSaved] = useState(false);
+  const [wornLog, setWornLog] = useState(() => loadWornLog());
+  const [missingTerms, setMissingTerms] = useState(() => loadMissingTerms());
+  /** "다른 코디 보기"를 누른 횟수 — 시드에 섞어 같은 날에도 다른 순서를 만든다 (FR-29) */
+  const [variant, setVariant] = useState(0);
   const [isOffline, setIsOffline] = useState(() => typeof navigator !== 'undefined' && !navigator.onLine);
   const abortRef = useRef<AbortController | null>(null);
   const searchTriggerRef = useRef<HTMLButtonElement>(null);
@@ -136,6 +163,10 @@ export default function App() {
     setSavedOutfitIds((prev) => toggleSavedOutfit(outfitId, prev));
   }, []);
 
+  const handleToggleMissingTerm = useCallback((term: string) => {
+    setMissingTerms((prev) => toggleMissingTerm(term, prev));
+  }, []);
+
   const savedOutfits = useMemo(
     () => savedOutfitIds.map((id) => OUTFITS.find((o) => o.id === id)).filter((o): o is (typeof OUTFITS)[number] => !!o),
     [savedOutfitIds],
@@ -156,14 +187,19 @@ export default function App() {
     [savedOutfits.length],
   );
 
-  const dateKey = todayKey();
+  const { dateKey, nowHour, date } = useClock();
+  const recentIds = useMemo(() => recentlyWornIds(wornLog, dateKey), [wornLog, dateKey]);
+  const recOpts = useMemo(
+    () => ({ nowHour, variant, deprioritize: recentIds }),
+    [nowHour, variant, recentIds],
+  );
   const recs = useMemo(
-    () => (weather ? recommend(style, weather, dateKey, tone) : []),
-    [style, weather, dateKey, tone],
+    () => (weather ? recommend(style, weather, dateKey, tone, recOpts) : []),
+    [style, weather, dateKey, tone, recOpts],
   );
   const alternates = useMemo(
-    () => (weather ? recommendAlternates(style, weather, dateKey, tone) : { cooler: [], warmer: [] }),
-    [style, weather, dateKey, tone],
+    () => (weather ? recommendAlternates(style, weather, dateKey, tone, recOpts) : { cooler: [], warmer: [] }),
+    [style, weather, dateKey, tone, recOpts],
   );
   const advice = useMemo(() => (weather ? buildAdvice(weather) : []), [weather]);
   const hasAlternates = alternates.cooler.length > 0 || alternates.warmer.length > 0;
@@ -173,6 +209,25 @@ export default function App() {
     // 나타나는 걸 방지 (QA: showSaved 상태 잔류)
     if (savedOutfits.length === 0) setShowSaved(false);
   }, [savedOutfits.length]);
+
+  const handleToggleWorn = useCallback(
+    (outfitId: string) => {
+      setWornLog((prev) => toggleWorn(outfitId, dateKey, prev));
+    },
+    [dateKey],
+  );
+
+  /** 카드마다 반복되는 기록/옷장 관련 props — 목록 세 군데(추천·대안·즐겨찾기)에서 같이 쓴다 */
+  const cardProps = useCallback(
+    (outfitId: string) => ({
+      worn: wornLog.some((e) => e.outfitId === outfitId && e.date === dateKey),
+      onToggleWorn: handleToggleWorn,
+      lastWorn: lastWornDate(outfitId, wornLog),
+      missingTerms,
+      onToggleMissingTerm: handleToggleMissingTerm,
+    }),
+    [wornLog, dateKey, handleToggleWorn, missingTerms, handleToggleMissingTerm],
+  );
 
   return (
     <div className="page">
@@ -196,7 +251,7 @@ export default function App() {
           </div>
         </div>
         <p className="dateline">
-          {formatDate()} · {city ? `${city.name}${city.region && city.region !== city.name ? ` (${city.region})` : ''}` : '위치 확인 중'}
+          {formatDate(date)} · {city ? `${city.name}${city.region && city.region !== city.name ? ` (${city.region})` : ''}` : '위치 확인 중'}
         </p>
         <FavoriteBar favorites={favorites} current={city} onSelect={selectCity} onToggleCurrent={handleToggleFavorite} />
       </header>
@@ -226,7 +281,9 @@ export default function App() {
           <>
             <WeatherCard weather={weather} />
             <DayBrief weather={weather} />
+            <YesterdayLine weather={weather} />
             <TomorrowPreview weather={weather} />
+            <WeekForecast weather={weather} />
             <AdviceList advice={advice} />
 
             {savedOutfits.length > 0 && (
@@ -250,6 +307,7 @@ export default function App() {
                         prefix="SAVED"
                         saved
                         onToggleSave={handleUnsaveFromSavedList}
+                        {...cardProps(outfit.id)}
                       />
                     ))}
                   </div>
@@ -285,17 +343,25 @@ export default function App() {
               </div>
               <div id="outfit-panel" ref={outfitPanelRef} role="tabpanel" aria-labelledby={styleTabId(style)} tabIndex={-1}>
               {recs.length > 0 ? (
-                <div className="outfit-list">
-                  {recs.map((rec, i) => (
-                    <OutfitCard
-                      key={rec.outfit.id}
-                      rec={rec}
-                      index={i}
-                      saved={savedOutfitIds.includes(rec.outfit.id)}
-                      onToggleSave={handleToggleSaveOutfit}
-                    />
-                  ))}
-                </div>
+                <>
+                  <div className="outfit-list">
+                    {recs.map((rec, i) => (
+                      <OutfitCard
+                        key={rec.outfit.id}
+                        rec={rec}
+                        index={i}
+                        saved={savedOutfitIds.includes(rec.outfit.id)}
+                        onToggleSave={handleToggleSaveOutfit}
+                        {...cardProps(rec.outfit.id)}
+                      />
+                    ))}
+                  </div>
+                  {recs.length > 1 && (
+                    <button type="button" className="text-btn reshuffle" onClick={() => setVariant((v) => v + 1)}>
+                      다른 코디 보기
+                    </button>
+                  )}
+                </>
               ) : (
                 <p className="status">
                   {STYLE_LABELS[style]} 스타일{tone !== 'all' ? `의 ${tone === 'cool' ? '쿨톤' : '웜톤'}` : ''}에서
@@ -328,6 +394,7 @@ export default function App() {
                                 prefix="ALT"
                                 saved={savedOutfitIds.includes(rec.outfit.id)}
                                 onToggleSave={handleToggleSaveOutfit}
+                                {...cardProps(rec.outfit.id)}
                               />
                             ))}
                           </div>
@@ -345,6 +412,7 @@ export default function App() {
                                 prefix="ALT"
                                 saved={savedOutfitIds.includes(rec.outfit.id)}
                                 onToggleSave={handleToggleSaveOutfit}
+                                {...cardProps(rec.outfit.id)}
                               />
                             ))}
                           </div>

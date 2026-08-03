@@ -16,10 +16,27 @@
     <link rel="apple-touch-icon" sizes="180x180" href="icons/icon-180.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!--
+      브랜드 서체는 제목에만 쓰는 장식이라 이것 때문에 첫 렌더가 밀리면 손해다 (NFR-02).
+      media="print"로 받아 두고 다 받은 뒤 all로 바꿔 렌더 블로킹을 피한다.
+
+      crossorigin이 필수다 (QA): 이게 없으면 스타일시트 요청이 no-cors로 나가 불투명(opaque) 응답이
+      되고, 서비스워커가 `fresh.ok === false`로 판단해 캐시하지 못한다. 그러면 woff2 파일만 캐시되고
+      정작 @font-face 규칙이 담긴 CSS가 없어 오프라인에서 서체가 그대로 깨진다.
+    -->
     <link
       href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&display=swap"
       rel="stylesheet"
+      crossorigin
+      media="print"
+      onload="this.media='all'"
     />
+    <noscript>
+      <link
+        href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&display=swap"
+        rel="stylesheet"
+      />
+    </noscript>
   </head>
   <body>
     <div id="root"></div>
