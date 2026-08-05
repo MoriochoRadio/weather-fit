@@ -143,6 +143,38 @@ function seedOf(dateKey: string, variant: number | undefined, ...parts: string[]
 }
 
 /**
+ * 후보 코디를 화면에 내보낼 순서로 정렬한다.
+ *
+ * 본 추천과 대안 코디가 **같은 규칙**을 써야 한다 — 한쪽에만 두었더니 본 목록은 쿨톤이 먼저인데
+ * 대안 목록은 웜톤이 첫 카드로 올라와(FR-15 위반) 같은 화면에서 정렬 기준이 달라 보였다 (QA).
+ *
+ * 적용 순서(뒤에 적용한 것이 더 강한 기준):
+ * 1) 날짜 시드 셔플 — 같은 조건이면 항상 같은 순서
+ * 2) 강수 시 rainOk 우선
+ * 3) tone='all'이면 쿨톤 우선 (FR-15), 비 오는 날엔 강수 정렬을 다시 얹어 우선순위를 지킨다
+ * 4) 최근에 입은 코디는 맨 뒤로 (FR-32) — 빼지는 않는다
+ */
+function orderCandidates(
+  candidates: Outfit[],
+  seed: number,
+  rainy: boolean,
+  tone: ToneFilter,
+  recent?: ReadonlySet<string>,
+): Outfit[] {
+  // 아래 sort는 모두 안정 정렬이라 직전 단계의 순서를 유지한 채 기준 하나씩만 얹는다
+  let sorted = seededShuffle(candidates, seed);
+  if (rainy) sorted = [...sorted].sort((a, b) => Number(b.rainOk) - Number(a.rainOk));
+  if (tone === 'all') {
+    sorted = [...sorted].sort((a, b) => Number(a.tone === 'warm') - Number(b.tone === 'warm'));
+    if (rainy) sorted = [...sorted].sort((a, b) => Number(b.rainOk) - Number(a.rainOk));
+  }
+  if (recent && recent.size > 0) {
+    sorted = [...sorted].sort((a, b) => Number(recent.has(a.id)) - Number(recent.has(b.id)));
+  }
+  return sorted;
+}
+
+/**
  * 스타일 × 날씨에 맞는 코디 목록.
  * - 기온대가 맞는 코디만 후보로 선정
  * - 톤 필터(전체/쿨톤/웜톤) 적용, '전체'는 쿨톤 우선 정렬 (FR-15)
@@ -161,19 +193,13 @@ export function recommend(
   const candidates = OUTFITS.filter(
     (o) => o.style === style && o.bands.includes(band) && (tone === 'all' || o.tone === tone),
   );
-  const shuffled = seededShuffle(candidates, seedOf(dateKey, opts.variant, style, band));
-  let sorted = rainy ? [...shuffled].sort((a, b) => Number(b.rainOk) - Number(a.rainOk)) : shuffled;
-  if (tone === 'all') {
-    // 안정 정렬이라 시드 순서·강수 순서를 유지한 채 쿨톤만 앞으로
-    sorted = [...sorted].sort((a, b) => Number(a.tone === 'warm') - Number(b.tone === 'warm'));
-    if (rainy) sorted = [...sorted].sort((a, b) => Number(b.rainOk) - Number(a.rainOk));
-  }
-  // 최근에 입은 코디는 맨 뒤로 — 며칠 연달아 같은 옷을 제안받는 걸 피한다 (FR-32).
-  // 마지막에 한 번만 적용해 위의 강수·톤 정렬 결과를 뒤집지 않는다.
-  const recent = opts.deprioritize;
-  if (recent && recent.size > 0) {
-    sorted = [...sorted].sort((a, b) => Number(recent.has(a.id)) - Number(recent.has(b.id)));
-  }
+  const sorted = orderCandidates(
+    candidates,
+    seedOf(dateKey, opts.variant, style, band),
+    rainy,
+    tone,
+    opts.deprioritize,
+  );
   return sorted.map((outfit) => ({ outfit, rainWarning: rainy && !outfit.rainOk }));
 }
 
@@ -210,8 +236,14 @@ export function recommendAlternates(
         !o.bands.includes(band) &&
         (tone === 'all' || o.tone === tone),
     );
-    const shuffled = seededShuffle(candidates, seedOf(dateKey, opts.variant, style, target, 'alt'));
-    const sorted = rainy ? [...shuffled].sort((a, b) => Number(b.rainOk) - Number(a.rainOk)) : shuffled;
+    // 본 추천과 같은 정렬 규칙 — 쿨톤 우선(FR-15)·최근 착용 뒤로(FR-32)가 대안에도 그대로 걸린다
+    const sorted = orderCandidates(
+      candidates,
+      seedOf(dateKey, opts.variant, style, target, 'alt'),
+      rainy,
+      tone,
+      opts.deprioritize,
+    );
     return sorted.map((outfit) => ({ outfit, rainWarning: rainy && !outfit.rainOk }));
   };
 

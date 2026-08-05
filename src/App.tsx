@@ -240,7 +240,9 @@ export default function App() {
               type="button"
               className="text-btn"
               aria-expanded={searchOpen}
-              aria-controls={REGION_PICKER_ID}
+              // 닫혀 있을 땐 RegionPicker가 null을 반환해 그 id가 DOM에 없다 —
+              // 없는 요소를 가리키는 aria-controls는 스크린리더에서 무효 참조가 되므로 열렸을 때만 건다 (QA)
+              aria-controls={searchOpen ? REGION_PICKER_ID : undefined}
               onClick={() => setSearchOpen((v) => !v)}
             >
               지역 변경
@@ -279,7 +281,7 @@ export default function App() {
         )}
         {state === 'ready' && weather && (
           <>
-            <WeatherCard weather={weather} />
+            <WeatherCard weather={weather} nowHour={nowHour} />
             <DayBrief weather={weather} />
             <YesterdayLine weather={weather} />
             <TomorrowPreview weather={weather} />

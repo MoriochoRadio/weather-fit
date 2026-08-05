@@ -1,6 +1,8 @@
 import type { DailyForecast, WeatherSummary } from '../types';
 
 interface ForecastResponse {
+  /** timezone=auto로 정해진 조회 지역의 UTC 오프셋(초) — 응답에 없을 수도 있어 옵셔널 */
+  utc_offset_seconds?: number;
   current: {
     temperature_2m: number;
     apparent_temperature: number;
@@ -53,10 +55,28 @@ function assertValidResponse(data: unknown): asserts data is ForecastResponse {
   if (!ok) throw new Error('날씨 응답 형식이 올바르지 않습니다');
 }
 
-function localDateKey(d = new Date()): string {
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  return `${d.getFullYear()}-${mm}-${dd}`;
+/**
+ * 응답에서 "오늘"을 찾을 때 쓸 날짜 문자열.
+ *
+ * timezone=auto로 받은 응답의 시각은 조회 지역(한국) 기준인데, 기준 날짜를 기기 로컬 날짜로 잡으면
+ * 기기 시간대가 KST가 아닐 때(해외에서 열람, 시간대를 바꿔 둔 기기 등) 날짜가 어긋난다. 그러면
+ * findDayStart가 오늘을 못 찾고 폴백 인덱스(=어제)로 떨어져 어제 날씨를 오늘로 표시하게 된다 (QA).
+ * 응답이 알려 주는 UTC 오프셋이 있으면 그걸로 지역 기준 날짜를 계산한다.
+ *
+ * @param utcOffsetSeconds 없으면(구버전 응답 등) 기기 로컬 날짜로 폴백
+ */
+function localDateKey(utcOffsetSeconds?: number): string {
+  const now = new Date();
+  if (utcOffsetSeconds === undefined) {
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const dd = String(now.getDate()).padStart(2, '0');
+    return `${now.getFullYear()}-${mm}-${dd}`;
+  }
+  // UTC 기준 시각을 지역 오프셋만큼 민 뒤 UTC 필드를 읽으면 기기 시간대와 무관하게 지역 날짜가 나온다
+  const shifted = new Date(now.getTime() + utcOffsetSeconds * 1000);
+  const mm = String(shifted.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(shifted.getUTCDate()).padStart(2, '0');
+  return `${shifted.getUTCFullYear()}-${mm}-${dd}`;
 }
 
 /**
@@ -114,7 +134,7 @@ export async function fetchWeather(
   const data: unknown = await res.json();
   assertValidResponse(data);
 
-  const today = localDateKey();
+  const today = localDateKey(data.utc_offset_seconds);
   const d = data.daily;
   // past_days=1이면 0번이 어제고 1번이 오늘 — 날짜로 직접 찾는다
   const di = findDayStart(d.time, today, 0);

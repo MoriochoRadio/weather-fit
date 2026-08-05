@@ -62,7 +62,10 @@ function buildSvg(outfit: Outfit): string {
   const rows: Array<[string, string]> = [];
   if (items.outer) rows.push(['아우터', items.outer]);
   rows.push(['상의', items.top], ['하의', items.bottom], ['신발', items.shoes]);
-  if (items.acc && !items.acc.startsWith('없음')) rows.push(['액세서리', items.acc]);
+  // "없음 — 실버 프레임 선글라스 정도만"처럼 '없음'으로 시작해도 뒤에 스타일링 지침이 붙는다.
+  // 통째로 걸러 냈더니 화면 카드·공유 텍스트엔 있는 문구가 이미지에서만 사라졌다 (QA: 표시 기준 불일치).
+  // 물건이 없어 그릴 게 없는 아이콘만 숨기고(pickIcon), 글자는 세 곳 모두 그대로 보여준다.
+  if (items.acc) rows.push(['액세서리', items.acc]);
 
   const FONT = 'system-ui, -apple-system, \'Malgun Gothic\', sans-serif';
   let y = ITEMS_TOP;

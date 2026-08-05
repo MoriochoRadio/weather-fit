@@ -135,6 +135,40 @@ describe('fetchWeather', () => {
     });
   });
 
+  // v1.8.3: 기준 날짜를 기기 로컬 날짜로 잡으면 기기 시간대가 조회 지역과 다를 때 "오늘"을 못 찾고
+  // 폴백(=어제)으로 떨어져 어제 날씨를 오늘로 표시했다 (QA).
+  it('기기 시간대가 달라도 응답의 UTC 오프셋 기준으로 오늘을 찾는다', async () => {
+    // 2026-08-05 13:00Z — UTC에서도 KST(+9)에서도 날짜는 8/5지만, +14 지역은 이미 8/6이다.
+    // 테스트 러너의 시간대(로컬 KST / CI UTC)와 무관하게 결과가 갈리는 시점을 골랐다.
+    vi.setSystemTime(new Date('2026-08-05T13:00:00Z'));
+    const body = validResponse() as ReturnType<typeof validResponse> & {
+      utc_offset_seconds: number;
+      daily: { time: string[] };
+    };
+    body.utc_offset_seconds = 14 * 3600;
+    body.daily.time = ['2026-08-05', '2026-08-06', '2026-08-07'];
+    body.daily.temperature_2m_max = [10, 22, 27];
+    body.daily.temperature_2m_min = [3, 15, 18];
+    body.daily.precipitation_probability_max = [80, 30, 70];
+    body.daily.precipitation_sum = [12, 0, 3];
+    body.daily.weather_code = [61, 1, 61];
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(body)));
+
+    const w = await fetchWeather(-1.3, 172.9, '타라와');
+    expect(w.tempMax).toBe(22); // 8/6(그 지역의 오늘) — 8/5의 10이 아니다
+    expect(w.yesterday).toEqual({ tempMin: 3, tempMax: 10 });
+  });
+
+  it('UTC 오프셋이 없는 응답은 기기 로컬 날짜로 폴백한다', async () => {
+    const body = validResponse() as ReturnType<typeof validResponse> & { daily: { time: string[] } };
+    const now = new Date();
+    const key = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    body.daily.time = [key];
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(body)));
+    const w = await fetchWeather(37.5, 127, '서울');
+    expect(w.tempMax).toBe(22);
+  });
+
   it('HTTP 오류 상태면 에러를 던진다', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse({}, false)));
     await expect(fetchWeather(37.5, 127, '서울')).rejects.toThrow(/날씨 API 오류/);

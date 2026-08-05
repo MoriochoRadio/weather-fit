@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { WeatherSummary } from '../types';
 import { BAND_LABELS, tempBand, weatherIcon } from '../engine/recommend';
+import { precipWord } from '../engine/weatherCodes';
 
 interface Props {
   weather: WeatherSummary;
@@ -43,7 +44,12 @@ export default function WeekForecast({ weather }: Props) {
                   <b>{Math.round(d.tempMax)}°</b> / {Math.round(d.tempMin)}°
                 </span>
                 <span className="week-band">{BAND_LABELS[band]}</span>
-                {d.precipProb >= 50 && <span className="week-rain">비 {Math.round(d.precipProb)}%</span>}
+                {/* 눈 오는 날을 "비"라고 안내하던 문제 — 그날 날씨 코드로 낱말을 고른다 (QA, tomorrowLine과 동일 규칙) */}
+                {d.precipProb >= 50 && (
+                  <span className="week-rain">
+                    {precipWord(d.weatherCode)} {Math.round(d.precipProb)}%
+                  </span>
+                )}
               </li>
             );
           })}

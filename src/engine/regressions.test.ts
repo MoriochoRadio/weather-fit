@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { StyleId, TempBand, WeatherSummary } from '../types';
 import { buildBriefing, formatHour, tomorrowLine, yesterdayLine } from './briefing';
-import { recommend, referenceTemp } from './recommend';
+import { recommend, recommendAlternates, referenceTemp, tempBand } from './recommend';
 import { OUTFITS, STYLE_ORDER } from '../data/outfits';
 
 /** 하루 종일 서늘하다가 낮에만 확 더워지는 날 — 시간대별 추천 차이를 드러내기 좋은 형태 */
@@ -150,6 +150,55 @@ describe('recommend — variant / deprioritize (FR-29, FR-32)', () => {
     const base = recommend('oldmoney', w, DATE).map((r) => r.outfit.id);
     const all = recommend('oldmoney', w, DATE, 'all', { deprioritize: new Set(base) });
     expect(all).toHaveLength(base.length);
+  });
+});
+
+describe('대안 코디 정렬 — 본 추천과 같은 규칙 (v1.8.3 QA)', () => {
+  // 20도 근처 = mild. 인접 기온대(warm/chilly) 대안이 양쪽 다 나온다
+  const w = weatherWithHourly(Array.from({ length: 24 }, () => 20));
+  const DATE = '2026-08-05';
+
+  it("톤 '전체'면 대안 코디도 쿨톤이 먼저 온다 (FR-15)", () => {
+    const { cooler, warmer } = recommendAlternates('oldmoney', w, DATE);
+    for (const list of [cooler, warmer]) {
+      const tones = list.map((r) => r.outfit.tone);
+      if (!tones.includes('warm') || !tones.includes('cool')) continue;
+      expect(tones.indexOf('warm')).toBeGreaterThan(tones.lastIndexOf('cool'));
+    }
+  });
+
+  it('최근에 입은 코디는 대안 목록에서도 뒤로 밀린다 (FR-32)', () => {
+    const base = recommendAlternates('oldmoney', w, DATE).cooler.map((r) => r.outfit.id);
+    expect(base.length).toBeGreaterThan(1);
+    const moved = recommendAlternates('oldmoney', w, DATE, 'all', {
+      deprioritize: new Set([base[0]]),
+    }).cooler.map((r) => r.outfit.id);
+    expect([...moved].sort()).toEqual([...base].sort()); // 빠지지 않고
+    expect(moved[moved.length - 1]).toBe(base[0]); // 뒤로만 밀린다
+  });
+
+  it('비 오는 날엔 대안 코디도 비에 강한 것이 먼저 온다', () => {
+    const rainy = { ...w, precipProb: 90, weatherCode: 63 };
+    const { cooler, warmer } = recommendAlternates('casual', rainy, DATE);
+    for (const list of [cooler, warmer]) {
+      const flags = list.map((r) => r.outfit.rainOk);
+      const firstNotOk = flags.indexOf(false);
+      if (firstNotOk === -1) continue;
+      expect(firstNotOk).toBeGreaterThan(flags.lastIndexOf(true));
+    }
+  });
+});
+
+describe('날씨 카드와 추천이 같은 기온대를 가리킨다 (v1.8.3 QA)', () => {
+  // 낮 22도 → 저녁 6도로 급락하는 날: 카드가 한낮 기준이면 아래 추천과 어긋난다
+  const temps = Array.from({ length: 24 }, (_, h) => (h >= 10 && h < 17 ? 22 : 6));
+  const w = weatherWithHourly(temps);
+
+  it.each([9, 12, 15, 17, 19, 21, 23])('%i시에 카드 기온대 = 추천 기온대', (hour) => {
+    // WeatherCard가 쓰는 값과 recommend가 쓰는 값이 같은 인자로 계산되는지 확인
+    const cardBand = tempBand(referenceTemp(w, hour));
+    const recBand = recommend('oldmoney', w, '2026-08-05', 'all', { nowHour: hour })[0].outfit.bands;
+    expect(recBand).toContain(cardBand);
   });
 });
 

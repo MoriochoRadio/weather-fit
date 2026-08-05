@@ -50,7 +50,7 @@
 ```bash
 npm install
 npm run dev      # 개발 서버 (http://localhost:5173)
-npm test         # 단위 테스트 (271개)
+npm test         # 단위 테스트 (283개)
 npm run build    # 프로덕션 빌드 → dist/
 npm run preview  # 빌드 결과 미리보기
 ```
