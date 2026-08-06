@@ -3,6 +3,14 @@ import { buildBriefing } from '../engine/briefing';
 
 interface Props {
   weather: WeatherSummary;
+  /**
+   * 오늘이 아니면 "지금 여기" 점을 찍지 않는다 (FR-35).
+   * 현재 시각 점은 오늘 그래프에서만 뜻이 있는데, 날짜를 바꿔도 그대로 찍혀 사흘 뒤 그래프에
+   * "지금"이 표시됐다 (v1.9 QA).
+   */
+  isToday?: boolean;
+  /** '오늘' · '모레' 등 — 스크린리더가 어느 날 그래프인지 알 수 있게 */
+  dayLabel?: string;
 }
 
 const W = 240;
@@ -16,7 +24,7 @@ const PAD_BOTTOM = 12;
  * 단일 시리즈라 범례 없음, 수치는 텍스트 토큰으로 표기.
  * 강수확률은 별도 축 대신 배경 밴드로 표시해 이중 축을 피한다.
  */
-export default function DayBrief({ weather }: Props) {
+export default function DayBrief({ weather, isToday = true, dayLabel = '오늘' }: Props) {
   const brief = buildBriefing(weather);
   const h = weather.hourly;
   if (!brief || !h || h.temp.length < 2) return null;
@@ -31,11 +39,10 @@ export default function DayBrief({ weather }: Props) {
 
   const minIdx = h.temp.indexOf(min);
   const maxIdx = h.temp.indexOf(max);
-  const nowHour = new Date().getHours();
-  const nowIdx = h.hours.indexOf(nowHour);
+  const nowIdx = isToday ? h.hours.indexOf(new Date().getHours()) : -1;
 
   return (
-    <section className="daybrief" aria-label="오늘 하루 날씨 흐름">
+    <section className="daybrief" aria-label={`${dayLabel} 하루 날씨 흐름`}>
       <div className="daybrief-top">
         <dl className="daybrief-segments">
           {brief.segments.map((s) => (
@@ -49,7 +56,7 @@ export default function DayBrief({ weather }: Props) {
           className="sparkline"
           viewBox={`0 0 ${W} ${H}`}
           role="img"
-          aria-label={`0시부터 23시까지 기온 흐름, 최저 ${Math.round(min)}도 최고 ${Math.round(max)}도`}
+          aria-label={`${dayLabel} 0시부터 23시까지 기온 흐름, 최저 ${Math.round(min)}도 최고 ${Math.round(max)}도`}
         >
           {brief.rainWindows.map((r) => {
             const i0 = h.hours.indexOf(r.startHour);

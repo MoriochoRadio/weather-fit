@@ -126,12 +126,43 @@ describe('fetchWeather', () => {
       expect(w.hourly?.precipProb.every((p) => p === 5)).toBe(true);
     });
 
-    it('어제·내일·주간 예보를 채운다', async () => {
+    it('어제·내일 비교값을 채운다', async () => {
       vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(withPastDay())));
       const w = await fetchWeather(37.5, 127, '서울');
       expect(w.yesterday).toEqual({ tempMin: 3, tempMax: 10 });
       expect(w.tomorrow).toMatchObject({ tempMax: 27, precipProb: 70 });
-      expect(w.week?.map((d) => d.tempMax)).toEqual([27, 25]);
+    });
+
+    // v1.9: 날짜 선택(FR-35)은 days[0]이 반드시 오늘이라는 전제 위에 서 있다.
+    it('days는 오늘부터 시작한다 — 어제가 섞여 들어오지 않는다', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(withPastDay())));
+      const w = await fetchWeather(37.5, 127, '서울');
+      expect(w.days?.map((d) => d.tempMax)).toEqual([22, 27, 25]);
+      expect(w.days?.[0].precipSum).toBe(0); // 어제(12)가 아니라 오늘
+    });
+
+    // v1.9 QA: 현재 실측 풍속을 예보 날짜에 쓰면 지금 부는 바람으로 닷새 뒤 강풍 조언이 붙는다.
+    it('그날 최대 풍속을 받아 두고, 응답에 없으면 비워 둔다', async () => {
+      const body = withPastDay() as ReturnType<typeof withPastDay> & {
+        daily: { wind_speed_10m_max?: (number | null)[] };
+      };
+      body.daily.wind_speed_10m_max = [50, 7, 33, null];
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(body)));
+      const w = await fetchWeather(37.5, 127, '서울');
+      expect(w.days?.map((d) => d.windMax)).toEqual([7, 33, undefined]); // 어제(50)는 빠진다
+
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(withPastDay())));
+      const legacy = await fetchWeather(37.5, 127, '서울');
+      expect(legacy.days?.every((d) => d.windMax === undefined)).toBe(true);
+    });
+
+    it('days의 시간별 예보는 그 날짜의 24개만 담는다', async () => {
+      vi.stubGlobal('fetch', vi.fn().mockResolvedValue(jsonResponse(withPastDay())));
+      const w = await fetchWeather(37.5, 127, '서울');
+      // 오늘은 10~33, 어제는 -100대 — 섞였다면 바로 드러난다
+      expect(w.days?.[0].hourly?.temp).toEqual(Array.from({ length: 24 }, (_, h) => 10 + h));
+      // 시간별 예보가 없는 날은 조용히 비워 둔다 (호출 측이 최저·최고 중간값으로 폴백)
+      expect(w.days?.[1].hourly).toBeUndefined();
     });
   });
 

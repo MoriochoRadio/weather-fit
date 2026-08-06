@@ -59,6 +59,23 @@ describe('yesterdayLine (FR-30)', () => {
   it('크게 오르면 한 겹 덜라고 말한다', () => {
     expect(yesterdayLine(today(25), { tempMin: 8, tempMax: 17 })).toMatch(/8° 높아요.*한 겹 덜어도/);
   });
+
+  // v1.9 QA: 기온이 떨어졌다는 사실만 보고 겹 조언을 붙여, 35°→31° 한여름 날에도
+  // "겉옷을 하나 더"라고 안내했다.
+  it('떨어졌어도 여전히 더운 날엔 겹 조언을 하지 않는다', () => {
+    const line = yesterdayLine(today(31), { tempMin: 26, tempMax: 39 });
+    expect(line).toContain('8° 낮');
+    expect(line).not.toContain('한 겹 더');
+    expect(line).not.toContain('겉옷');
+
+    const small = yesterdayLine(today(31), { tempMin: 26, tempMax: 35 });
+    expect(small).toBe('어제보다 4° 낮아요');
+  });
+
+  it('선선해진 날에는 겹 조언을 그대로 한다', () => {
+    expect(yesterdayLine(today(18), { tempMin: 15, tempMax: 26 })).toMatch(/8° 낮아요.*한 겹 더/);
+    expect(yesterdayLine(today(20), { tempMin: 15, tempMax: 24 })).toMatch(/4° 낮아요.*겉옷을 하나 더/);
+  });
 });
 
 describe('강수 문구 (v1.8 QA)', () => {

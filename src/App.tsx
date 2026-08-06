@@ -1,22 +1,25 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { City, StyleId, ToneFilter, WeatherSummary } from './types';
+import type { City, Outfit, StyleId, ToneFilter, WeatherSummary } from './types';
 import { DEFAULT_CITY, getCurrentPosition, loadFavorites, loadSavedCity, saveCity, toggleFavorite } from './services/geo';
 import { loadSavedStyle, loadSavedTone, saveStyle, saveTone } from './services/prefs';
 import { fetchWeather } from './services/weather';
 import { fetchAirQuality } from './services/airQuality';
-import { buildAdvice, recommend, recommendAlternates } from './engine/recommend';
+import { buildAdvice, recommend, recommendAlternates, type Recommendation } from './engine/recommend';
+import { comparedToTodayLine, dayOptions, weatherForDate } from './engine/dayView';
 import { OUTFITS, STYLE_LABELS } from './data/outfits';
 import { loadSavedOutfitIds, toggleSavedOutfit } from './services/savedOutfits';
 import { loadWornLog, lastWornDate, recentlyWornIds, toggleWorn } from './services/wornLog';
 import { loadMissingTerms, toggleMissingTerm } from './services/wardrobe';
 import WeatherCard from './components/WeatherCard';
 import DayBrief from './components/DayBrief';
+import DayPicker from './components/DayPicker';
 import YesterdayLine from './components/YesterdayLine';
 import TomorrowPreview from './components/TomorrowPreview';
-import WeekForecast from './components/WeekForecast';
 import AdviceList from './components/AdviceList';
 import StyleTabs, { styleTabId } from './components/StyleTabs';
 import OutfitCard from './components/OutfitCard';
+import OutfitDetail from './components/OutfitDetail';
+import ColorCombos from './components/ColorCombos';
 import RegionPicker, { REGION_PICKER_ID } from './components/RegionPicker';
 import FavoriteBar from './components/FavoriteBar';
 
@@ -51,6 +54,20 @@ function useClock(): { dateKey: string; nowHour: number; date: Date } {
 }
 
 type LoadState = 'loading' | 'ready' | 'error';
+/** 화면 모드 — 날씨 기반 추천과, 날씨와 무관한 색 조합 도구 (FR-36) */
+type ViewMode = 'outfits' | 'colors';
+
+/** "크게 보기"로 열린 코디 — 어느 목록의 몇 번째인지 (FR-37) */
+interface DetailTarget {
+  list: Recommendation[];
+  index: number;
+  /**
+   * "오늘 입었어요"를 달아도 되는 목록인지.
+   * 날짜 추천 목록은 오늘일 때만 허용하지만, 색 조합 화면의 코디는 날짜와 무관해 항상 허용한다 —
+   * 목록마다 판단이 다르므로 열 때 함께 들고 온다 (v1.9 QA).
+   */
+  allowWorn: boolean;
+}
 
 export default function App() {
   const [city, setCity] = useState<City | null>(null);
@@ -67,6 +84,7 @@ export default function App() {
     setToneState(t);
     saveTone(t);
   }, []);
+  const [view, setView] = useState<ViewMode>('outfits');
   const [searchOpen, setSearchOpen] = useState(false);
   const [showAlternates, setShowAlternates] = useState(false);
   const [favorites, setFavorites] = useState<City[]>(() => loadFavorites());
@@ -76,6 +94,9 @@ export default function App() {
   const [missingTerms, setMissingTerms] = useState(() => loadMissingTerms());
   /** "다른 코디 보기"를 누른 횟수 — 시드에 섞어 같은 날에도 다른 순서를 만든다 (FR-29) */
   const [variant, setVariant] = useState(0);
+  /** 사용자가 고른 날짜 (YYYY-MM-DD). null이면 오늘 (FR-35) */
+  const [pickedDate, setPickedDate] = useState<string | null>(null);
+  const [detail, setDetail] = useState<DetailTarget | null>(null);
   const [isOffline, setIsOffline] = useState(() => typeof navigator !== 'undefined' && !navigator.onLine);
   const abortRef = useRef<AbortController | null>(null);
   const searchTriggerRef = useRef<HTMLButtonElement>(null);
@@ -188,20 +209,47 @@ export default function App() {
   );
 
   const { dateKey, nowHour, date } = useClock();
+
+  // ── 날짜 선택 (FR-35) ──
+  const days = useMemo(() => (weather ? dayOptions(weather) : []), [weather]);
+  /**
+   * 실제로 보고 있는 날짜. 고른 날짜가 새로 받은 예보 범위에 없으면(자정을 넘겼거나 지역을 바꿔
+   * 예보가 갱신된 경우) 조용히 오늘로 되돌린다 — 존재하지 않는 날짜에 빈 화면이 뜨는 것보다 낫다.
+   */
+  const activeDate = useMemo(() => {
+    if (pickedDate && days.some((d) => d.date === pickedDate)) return pickedDate;
+    return days[0]?.date ?? null;
+  }, [pickedDate, days]);
+  const isToday = !activeDate || activeDate === days[0]?.date;
+  const dayLabel = days.find((d) => d.date === activeDate)?.label ?? '오늘';
+  /** 선택한 날짜 기준으로 다시 포장한 날씨 — 아래 추천·조언·브리핑이 전부 이걸 본다 */
+  const dayWeather = useMemo(() => {
+    if (!weather) return null;
+    if (!activeDate) return weather;
+    return weatherForDate(weather, activeDate) ?? weather;
+  }, [weather, activeDate]);
+  const compareLine = useMemo(
+    () => (weather && activeDate ? comparedToTodayLine(weather, activeDate) : null),
+    [weather, activeDate],
+  );
+  /** 추천 시드로 쓸 날짜 — 날짜마다 순서가 달라야 "다른 날을 보고 있다"가 느껴진다 */
+  const seedKey = activeDate ?? dateKey;
+
   const recentIds = useMemo(() => recentlyWornIds(wornLog, dateKey), [wornLog, dateKey]);
   const recOpts = useMemo(
-    () => ({ nowHour, variant, deprioritize: recentIds }),
-    [nowHour, variant, recentIds],
+    // "앞으로 남은 시간" 보정(FR-28)은 오늘에만 의미가 있다 — 모레 코디를 지금 시각으로 좁히면 안 된다
+    () => ({ nowHour: isToday ? nowHour : undefined, variant, deprioritize: recentIds }),
+    [isToday, nowHour, variant, recentIds],
   );
   const recs = useMemo(
-    () => (weather ? recommend(style, weather, dateKey, tone, recOpts) : []),
-    [style, weather, dateKey, tone, recOpts],
+    () => (dayWeather ? recommend(style, dayWeather, seedKey, tone, recOpts) : []),
+    [style, dayWeather, seedKey, tone, recOpts],
   );
   const alternates = useMemo(
-    () => (weather ? recommendAlternates(style, weather, dateKey, tone, recOpts) : { cooler: [], warmer: [] }),
-    [style, weather, dateKey, tone, recOpts],
+    () => (dayWeather ? recommendAlternates(style, dayWeather, seedKey, tone, recOpts) : { cooler: [], warmer: [] }),
+    [style, dayWeather, seedKey, tone, recOpts],
   );
-  const advice = useMemo(() => (weather ? buildAdvice(weather) : []), [weather]);
+  const advice = useMemo(() => (dayWeather ? buildAdvice(dayWeather) : []), [dayWeather]);
   const hasAlternates = alternates.cooler.length > 0 || alternates.warmer.length > 0;
 
   useEffect(() => {
@@ -217,16 +265,80 @@ export default function App() {
     [dateKey],
   );
 
-  /** 카드마다 반복되는 기록/옷장 관련 props — 목록 세 군데(추천·대안·즐겨찾기)에서 같이 쓴다 */
+  const openDetail = useCallback((list: Recommendation[], outfitId: string, allowWorn: boolean) => {
+    const index = list.findIndex((r) => r.outfit.id === outfitId);
+    if (index >= 0) setDetail({ list, index, allowWorn });
+  }, []);
+  const closeDetail = useCallback(() => setDetail(null), []);
+
+  const isWorn = useCallback(
+    (outfitId: string) => wornLog.some((e) => e.outfitId === outfitId && e.date === dateKey),
+    [wornLog, dateKey],
+  );
+
+  /**
+   * 카드마다 반복되는 기록/옷장 관련 props — 목록 네 군데(추천·대안·즐겨찾기·색 조합)에서 같이 쓴다.
+   * "오늘 입었어요"는 오늘을 보고 있을 때만 단다 — 모레 카드에 오늘 기록을 남기게 되면 기록이 뒤엉킨다.
+   */
   const cardProps = useCallback(
     (outfitId: string) => ({
-      worn: wornLog.some((e) => e.outfitId === outfitId && e.date === dateKey),
-      onToggleWorn: handleToggleWorn,
+      worn: isWorn(outfitId),
+      onToggleWorn: isToday ? handleToggleWorn : undefined,
       lastWorn: lastWornDate(outfitId, wornLog),
       missingTerms,
       onToggleMissingTerm: handleToggleMissingTerm,
     }),
-    [wornLog, dateKey, handleToggleWorn, missingTerms, handleToggleMissingTerm],
+    [isWorn, isToday, handleToggleWorn, wornLog, missingTerms, handleToggleMissingTerm],
+  );
+
+  /**
+   * 색 조합 화면이 "이 조합을 쓰는 코디"를 카드로 그릴 때 쓰는 렌더러.
+   * 이 화면은 **날짜와 무관**하므로 cardProps를 쓰지 않는다 — 다른 탭에서 모레를 골라 뒀다고
+   * 여기 카드의 "오늘 입었어요"가 사라지면 안 된다 (v1.9 QA).
+   */
+  const renderComboOutfits = useCallback(
+    (outfits: Outfit[]) => {
+      const list: Recommendation[] = outfits.map((outfit) => ({ outfit, rainWarning: false }));
+      return (
+        <div className="outfit-list">
+          {list.map((rec, i) => (
+            <OutfitCard
+              key={rec.outfit.id}
+              rec={rec}
+              index={i}
+              prefix="COLOR"
+              saved={savedOutfitIds.includes(rec.outfit.id)}
+              onToggleSave={handleToggleSaveOutfit}
+              onOpen={(id) => openDetail(list, id, true)}
+              worn={isWorn(rec.outfit.id)}
+              onToggleWorn={handleToggleWorn}
+              lastWorn={lastWornDate(rec.outfit.id, wornLog)}
+              missingTerms={missingTerms}
+              onToggleMissingTerm={handleToggleMissingTerm}
+            />
+          ))}
+        </div>
+      );
+    },
+    [
+      savedOutfitIds,
+      handleToggleSaveOutfit,
+      openDetail,
+      isWorn,
+      handleToggleWorn,
+      wornLog,
+      missingTerms,
+      handleToggleMissingTerm,
+    ],
+  );
+
+  const savedList: Recommendation[] = useMemo(
+    () => savedOutfits.map((outfit) => ({ outfit, rainWarning: false })),
+    [savedOutfits],
+  );
+  const alternateList = useMemo(
+    () => [...alternates.cooler, ...alternates.warmer],
+    [alternates.cooler, alternates.warmer],
   );
 
   return (
@@ -256,179 +368,223 @@ export default function App() {
           {formatDate(date)} · {city ? `${city.name}${city.region && city.region !== city.name ? ` (${city.region})` : ''}` : '위치 확인 중'}
         </p>
         <FavoriteBar favorites={favorites} current={city} onSelect={selectCity} onToggleCurrent={handleToggleFavorite} />
+        <nav className="viewnav" aria-label="화면 선택">
+          {(
+            [
+              ['outfits', '날씨별 코디'],
+              ['colors', '색 조합'],
+            ] as Array<[ViewMode, string]>
+          ).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              className={view === id ? 'viewnav-btn active' : 'viewnav-btn'}
+              aria-pressed={view === id}
+              onClick={() => setView(id)}
+            >
+              {label}
+            </button>
+          ))}
+        </nav>
       </header>
 
       <RegionPicker open={searchOpen} current={city} onSelect={handleSelectCity} onClose={closeSearch} />
 
       <main>
-        {isOffline && state === 'ready' && (
-          <p className="offline-banner" role="status">
-            오프라인 — 마지막으로 본 정보예요
-          </p>
-        )}
-        {state === 'loading' && (
-          <p className="status loading" role="status">
-            오늘 날씨를 불러오는 중…
-          </p>
-        )}
-        {state === 'error' && (
-          <div className="status error" role="alert">
-            <p>{errorMessage}</p>
-            <button type="button" className="text-btn" onClick={() => load(city ?? DEFAULT_CITY)}>
-              다시 시도
-            </button>
-          </div>
-        )}
-        {state === 'ready' && weather && (
+        {view === 'colors' ? (
+          <ColorCombos renderOutfits={renderComboOutfits} />
+        ) : (
           <>
-            <WeatherCard weather={weather} nowHour={nowHour} />
-            <DayBrief weather={weather} />
-            <YesterdayLine weather={weather} />
-            <TomorrowPreview weather={weather} />
-            <WeekForecast weather={weather} />
-            <AdviceList advice={advice} />
-
-            {savedOutfits.length > 0 && (
-              <section className="saved-outfits" aria-label="즐겨찾는 코디">
-                <button
-                  ref={savedToggleRef}
-                  type="button"
-                  className="text-btn"
-                  aria-expanded={showSaved}
-                  onClick={() => setShowSaved((v) => !v)}
-                >
-                  {showSaved ? '즐겨찾는 코디 접기' : `즐겨찾는 코디 보기 (${savedOutfits.length})`}
-                </button>
-                {showSaved && (
-                  <div className="outfit-list">
-                    {savedOutfits.map((outfit, i) => (
-                      <OutfitCard
-                        key={outfit.id}
-                        rec={{ outfit, rainWarning: false }}
-                        index={i}
-                        prefix="SAVED"
-                        saved
-                        onToggleSave={handleUnsaveFromSavedList}
-                        {...cardProps(outfit.id)}
-                      />
-                    ))}
-                  </div>
-                )}
-              </section>
+            {isOffline && state === 'ready' && (
+              <p className="offline-banner" role="status">
+                오프라인 — 마지막으로 본 정보예요
+              </p>
             )}
-
-            <section aria-label="코디 추천">
-              <div className="section-head">
-                <h2>오늘의 코디</h2>
-                <div className="filters">
-                  <StyleTabs active={style} onChange={setStyle} />
-                  <div className="tabs tone-tabs" role="group" aria-label="톤 필터">
-                    {(
-                      [
-                        ['all', '전체'],
-                        ['cool', '쿨톤'],
-                        ['warm', '웜톤'],
-                      ] as Array<[ToneFilter, string]>
-                    ).map(([id, label]) => (
-                      <button
-                        key={id}
-                        type="button"
-                        aria-pressed={tone === id}
-                        className={tone === id ? 'tab active' : 'tab'}
-                        onClick={() => setTone(id)}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+            {state === 'loading' && (
+              <p className="status loading" role="status">
+                오늘 날씨를 불러오는 중…
+              </p>
+            )}
+            {state === 'error' && (
+              <div className="status error" role="alert">
+                <p>{errorMessage}</p>
+                <button type="button" className="text-btn" onClick={() => load(city ?? DEFAULT_CITY)}>
+                  다시 시도
+                </button>
               </div>
-              <div id="outfit-panel" ref={outfitPanelRef} role="tabpanel" aria-labelledby={styleTabId(style)} tabIndex={-1}>
-              {recs.length > 0 ? (
-                <>
-                  <div className="outfit-list">
-                    {recs.map((rec, i) => (
-                      <OutfitCard
-                        key={rec.outfit.id}
-                        rec={rec}
-                        index={i}
-                        saved={savedOutfitIds.includes(rec.outfit.id)}
-                        onToggleSave={handleToggleSaveOutfit}
-                        {...cardProps(rec.outfit.id)}
-                      />
-                    ))}
-                  </div>
-                  {recs.length > 1 && (
-                    <button type="button" className="text-btn reshuffle" onClick={() => setVariant((v) => v + 1)}>
-                      다른 코디 보기
+            )}
+            {state === 'ready' && dayWeather && (
+              <>
+                <DayPicker days={days} selected={activeDate ?? ''} onSelect={setPickedDate} />
+                <WeatherCard weather={dayWeather} nowHour={nowHour} isToday={isToday} dayLabel={dayLabel} />
+                {!isToday && compareLine && <p className="daycompare">{compareLine}</p>}
+                <DayBrief weather={dayWeather} isToday={isToday} dayLabel={dayLabel} />
+                <YesterdayLine weather={dayWeather} />
+                <TomorrowPreview weather={dayWeather} />
+                <AdviceList advice={advice} />
+
+                {savedOutfits.length > 0 && (
+                  <section className="saved-outfits" aria-label="즐겨찾는 코디">
+                    <button
+                      ref={savedToggleRef}
+                      type="button"
+                      className="text-btn"
+                      aria-expanded={showSaved}
+                      onClick={() => setShowSaved((v) => !v)}
+                    >
+                      {showSaved ? '즐겨찾는 코디 접기' : `즐겨찾는 코디 보기 (${savedOutfits.length})`}
                     </button>
-                  )}
-                </>
-              ) : (
-                <p className="status">
-                  {STYLE_LABELS[style]} 스타일{tone !== 'all' ? `의 ${tone === 'cool' ? '쿨톤' : '웜톤'}` : ''}에서
-                  오늘 기온에 맞는 코디를 찾지 못했어요.
-                  {tone !== 'all' && ' 톤 필터를 "전체"로 바꿔 보세요.'}
-                </p>
-              )}
+                    {showSaved && (
+                      <div className="outfit-list">
+                        {savedList.map((rec, i) => (
+                          <OutfitCard
+                            key={rec.outfit.id}
+                            rec={rec}
+                            index={i}
+                            prefix="SAVED"
+                            saved
+                            onToggleSave={handleUnsaveFromSavedList}
+                            onOpen={(id) => openDetail(savedList, id, isToday)}
+                            {...cardProps(rec.outfit.id)}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </section>
+                )}
 
-              {hasAlternates && (
-                <div className="alternates">
-                  <button
-                    type="button"
-                    className="text-btn"
-                    aria-expanded={showAlternates}
-                    onClick={() => setShowAlternates((v) => !v)}
-                  >
-                    {showAlternates ? '대안 코디 접기' : '대안 코디 더 보기'}
-                  </button>
-                  {showAlternates && (
-                    <div className="alternates-body">
-                      {alternates.cooler.length > 0 && (
-                        <>
-                          <h3 className="alt-title">더 시원하게 입고 싶다면</h3>
-                          <div className="outfit-list">
-                            {alternates.cooler.map((rec, i) => (
-                              <OutfitCard
-                                key={rec.outfit.id}
-                                rec={rec}
-                                index={i}
-                                prefix="ALT"
-                                saved={savedOutfitIds.includes(rec.outfit.id)}
-                                onToggleSave={handleToggleSaveOutfit}
-                                {...cardProps(rec.outfit.id)}
-                              />
-                            ))}
-                          </div>
-                        </>
-                      )}
-                      {alternates.warmer.length > 0 && (
-                        <>
-                          <h3 className="alt-title">쌀쌀하게 느껴진다면</h3>
-                          <div className="outfit-list">
-                            {alternates.warmer.map((rec, i) => (
-                              <OutfitCard
-                                key={rec.outfit.id}
-                                rec={rec}
-                                index={alternates.cooler.length + i}
-                                prefix="ALT"
-                                saved={savedOutfitIds.includes(rec.outfit.id)}
-                                onToggleSave={handleToggleSaveOutfit}
-                                {...cardProps(rec.outfit.id)}
-                              />
-                            ))}
-                          </div>
-                        </>
-                      )}
+                <section aria-label="코디 추천">
+                  <div className="section-head">
+                    <h2>{dayLabel}의 코디</h2>
+                    <div className="filters">
+                      <StyleTabs active={style} onChange={setStyle} />
+                      <div className="tabs tone-tabs" role="group" aria-label="톤 필터">
+                        {(
+                          [
+                            ['all', '전체'],
+                            ['cool', '쿨톤'],
+                            ['warm', '웜톤'],
+                          ] as Array<[ToneFilter, string]>
+                        ).map(([id, label]) => (
+                          <button
+                            key={id}
+                            type="button"
+                            aria-pressed={tone === id}
+                            className={tone === id ? 'tab active' : 'tab'}
+                            onClick={() => setTone(id)}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                  )}
-                </div>
-              )}
-              </div>
-            </section>
+                  </div>
+                  <div id="outfit-panel" ref={outfitPanelRef} role="tabpanel" aria-labelledby={styleTabId(style)} tabIndex={-1}>
+                    {recs.length > 0 ? (
+                      <>
+                        <div className="outfit-list">
+                          {recs.map((rec, i) => (
+                            <OutfitCard
+                              key={rec.outfit.id}
+                              rec={rec}
+                              index={i}
+                              saved={savedOutfitIds.includes(rec.outfit.id)}
+                              onToggleSave={handleToggleSaveOutfit}
+                              onOpen={(id) => openDetail(recs, id, isToday)}
+                              {...cardProps(rec.outfit.id)}
+                            />
+                          ))}
+                        </div>
+                        {recs.length > 1 && (
+                          <button type="button" className="text-btn reshuffle" onClick={() => setVariant((v) => v + 1)}>
+                            다른 코디 보기
+                          </button>
+                        )}
+                      </>
+                    ) : (
+                      <p className="status">
+                        {STYLE_LABELS[style]} 스타일{tone !== 'all' ? `의 ${tone === 'cool' ? '쿨톤' : '웜톤'}` : ''}에서
+                        {dayLabel} 기온에 맞는 코디를 찾지 못했어요.
+                        {tone !== 'all' && ' 톤 필터를 "전체"로 바꿔 보세요.'}
+                      </p>
+                    )}
+
+                    {hasAlternates && (
+                      <div className="alternates">
+                        <button
+                          type="button"
+                          className="text-btn"
+                          aria-expanded={showAlternates}
+                          onClick={() => setShowAlternates((v) => !v)}
+                        >
+                          {showAlternates ? '대안 코디 접기' : '대안 코디 더 보기'}
+                        </button>
+                        {showAlternates && (
+                          <div className="alternates-body">
+                            {alternates.cooler.length > 0 && (
+                              <>
+                                <h3 className="alt-title">더 시원하게 입고 싶다면</h3>
+                                <div className="outfit-list">
+                                  {alternates.cooler.map((rec, i) => (
+                                    <OutfitCard
+                                      key={rec.outfit.id}
+                                      rec={rec}
+                                      index={i}
+                                      prefix="ALT"
+                                      saved={savedOutfitIds.includes(rec.outfit.id)}
+                                      onToggleSave={handleToggleSaveOutfit}
+                                      onOpen={(id) => openDetail(alternateList, id, isToday)}
+                                      {...cardProps(rec.outfit.id)}
+                                    />
+                                  ))}
+                                </div>
+                              </>
+                            )}
+                            {alternates.warmer.length > 0 && (
+                              <>
+                                <h3 className="alt-title">쌀쌀하게 느껴진다면</h3>
+                                <div className="outfit-list">
+                                  {alternates.warmer.map((rec, i) => (
+                                    <OutfitCard
+                                      key={rec.outfit.id}
+                                      rec={rec}
+                                      index={alternates.cooler.length + i}
+                                      prefix="ALT"
+                                      saved={savedOutfitIds.includes(rec.outfit.id)}
+                                      onToggleSave={handleToggleSaveOutfit}
+                                      onOpen={(id) => openDetail(alternateList, id, isToday)}
+                                      {...cardProps(rec.outfit.id)}
+                                    />
+                                  ))}
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </section>
+              </>
+            )}
           </>
         )}
       </main>
+
+      {detail && (
+        <OutfitDetail
+          recs={detail.list}
+          index={detail.index}
+          onIndexChange={(index) => setDetail((prev) => (prev ? { ...prev, index } : prev))}
+          onClose={closeDetail}
+          savedIds={savedOutfitIds}
+          onToggleSave={handleToggleSaveOutfit}
+          worn={isWorn}
+          onToggleWorn={detail.allowWorn ? handleToggleWorn : undefined}
+          missingTerms={missingTerms}
+          onToggleMissingTerm={handleToggleMissingTerm}
+        />
+      )}
 
       <footer className="foot">
         <p>날씨 데이터: Open-Meteo · 매일 새로운 순서로 코디를 제안합니다</p>

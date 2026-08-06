@@ -1,4 +1,4 @@
-import type { WeatherSummary } from '../types';
+import type { HourlyForecast, WeatherSummary } from '../types';
 import { precipWord } from './weatherCodes';
 
 /**
@@ -124,6 +124,18 @@ export function buildBriefing(w: WeatherSummary): DayBriefing | null {
 }
 
 /**
+ * 이 온도 위로는 "한 겹 더 / 겉옷을 하나 더"가 성립하지 않는다.
+ *
+ * 기온이 떨어졌다는 사실만 보고 겹 조언을 붙였더니, 35°에서 31°로 떨어진 한여름 날에
+ * "오늘보다 4° 낮아요 — 겉옷을 하나 더"라고 안내했다 (v1.9 QA). 떨어졌어도 여전히 더운 날엔
+ * 차이만 말하고 겹 이야기는 하지 않는다.
+ *
+ * recommend.ts의 tempBand를 쓰지 않는 이유: recommend가 이 파일을 import하므로 순환이 된다.
+ * 값은 tempBand의 warm 하한(23℃)보다 한 칸 위로 두어, 애매한 경계에서는 조언을 남긴다.
+ */
+export const LAYERING_MAX_TEMP = 25;
+
+/**
  * 어제 대비 한 줄 (FR-30).
  * 사람은 절대 기온보다 "어제 입은 것"을 기준으로 옷을 고르므로, 몇 도 차이인지와
  * 한 겹을 더할지 뺄지를 함께 알려 준다. 차이가 작으면 굳이 말하지 않는다(잡음).
@@ -133,8 +145,16 @@ export function yesterdayLine(today: WeatherSummary, yesterday: NonNullable<Weat
   if (Math.abs(diff) < 3) return null;
   if (diff >= 5) return `어제보다 ${diff}° 높아요 — 어제 입은 것보다 한 겹 덜어도 됩니다`;
   if (diff > 0) return `어제보다 ${diff}° 높아요 — 어제와 비슷하게 입되 겉옷은 가볍게`;
-  if (diff <= -5) return `어제보다 ${Math.abs(diff)}° 낮아요 — 어제 입은 것보다 한 겹 더 챙기세요`;
-  return `어제보다 ${Math.abs(diff)}° 낮아요 — 어제와 비슷하게 입되 겉옷을 하나 더`;
+
+  const stillHot = today.tempMax >= LAYERING_MAX_TEMP;
+  if (diff <= -5) {
+    return stillHot
+      ? `어제보다 ${Math.abs(diff)}° 낮지만 여전히 더운 편이에요`
+      : `어제보다 ${Math.abs(diff)}° 낮아요 — 어제 입은 것보다 한 겹 더 챙기세요`;
+  }
+  return stillHot
+    ? `어제보다 ${Math.abs(diff)}° 낮아요`
+    : `어제보다 ${Math.abs(diff)}° 낮아요 — 어제와 비슷하게 입되 겉옷을 하나 더`;
 }
 
 /** 내일 미리보기 한 줄 — 오늘 최고기온 대비 몇 도 차이인지, 비 소식이 있는지 (FR-24) */
@@ -158,9 +178,11 @@ export function tomorrowLine(today: WeatherSummary, tomorrow: NonNullable<Weathe
  * 저녁 9시에 열었는데 한낮 최고기온 기준으로 옷을 추천하던 문제 때문 (QA).
  * 밤 9시를 넘겨 오늘 남은 시간이 거의 없으면 마지막 3시간으로 버틴다.
  *
+ * @param w 시간별 예보만 있으면 되므로 WeatherSummary 전체를 요구하지 않는다 —
+ *   오늘이 아닌 날짜(FR-35)는 하루치 시간 예보만 들고 이 함수를 부른다.
  * @param nowHour 지금 시각(0~23). 넘기지 않으면 하루 전체(9~21시) 기준 — 순수 함수로 테스트하기 위해 주입식으로 둔다.
  */
-export function daytimeFeels(w: WeatherSummary, nowHour?: number): number | null {
+export function daytimeFeels(w: { hourly?: HourlyForecast }, nowHour?: number): number | null {
   const h = w.hourly;
   if (!h || h.hours.length === 0) return null;
   if (nowHour === undefined) return mean(inRange(h.hours, h.feelsLike, 9, 21));

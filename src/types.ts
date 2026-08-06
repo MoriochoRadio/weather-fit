@@ -30,11 +30,38 @@ export interface WeatherSummary {
   tomorrow?: { tempMin: number; tempMax: number; precipProb: number; weatherCode: number };
   /** 어제 기온 — "어제보다 몇 도" 비교용 (FR-30). past_days 없이 받은 구버전 캐시엔 없음 */
   yesterday?: { tempMin: number; tempMax: number };
-  /** 오늘 이후 주간 예보 (FR-31) — 오늘 포함하지 않는다 */
-  week?: DailyForecast[];
+  /**
+   * 오늘부터 앞으로 며칠치 하루 단위 날씨 (FR-35 "다른 날짜 코디").
+   * **0번이 반드시 오늘**이고 시간별 예보까지 들고 있어, 아무 날짜나 골라 오늘과 똑같은
+   * 품질의 추천을 만들 수 있다. 구버전 캐시엔 없다.
+   */
+  days?: DayWeather[];
 }
 
-/** 주간 예보 하루치 (FR-31) */
+/**
+ * 하루치 날씨 (FR-35).
+ * 일별 요약(DailyForecast)과 달리 시간별 흐름을 함께 들고 있어, 그날의 활동 시간대
+ * 평균 체감으로 기온대를 잡을 수 있다 — 최고/최저 중간값보다 실제에 가깝다.
+ */
+export interface DayWeather {
+  /** YYYY-MM-DD (지역 시간대 기준) */
+  date: string;
+  tempMin: number;
+  tempMax: number;
+  precipProb: number;
+  precipSum: number;
+  weatherCode: number;
+  uvIndex?: number;
+  /**
+   * 그날 최대 풍속 (km/h).
+   * 현재 풍속은 **실측이라 다른 날짜에 쓸 수 없다** — 지금 부는 바람으로 닷새 뒤 강풍 조언을
+   * 띄우게 된다 (v1.9 QA). 하루 대표값을 따로 받아 온다.
+   */
+  windMax?: number;
+  hourly?: HourlyForecast;
+}
+
+/** 일별 요약 한 칸 — 어제·내일 비교(FR-30/24)에 쓴다 */
 export interface DailyForecast {
   /** YYYY-MM-DD (지역 시간대 기준) */
   date: string;

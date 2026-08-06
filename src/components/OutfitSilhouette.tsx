@@ -3,6 +3,7 @@ import { SILHOUETTE_VIEWBOX, buildSilhouette, detailStroke, type SilhouettePiece
 
 interface Props {
   items: OutfitItems;
+  className?: string;
 }
 
 function Piece({ asset, color, x, y, width, height, flip }: SilhouettePiece) {
@@ -44,22 +45,30 @@ function Piece({ asset, color, x, y, width, height, flip }: SilhouettePiece) {
 }
 
 /**
- * 코디를 실제 색으로 칠한 미니 실루엣 (FR-19).
- * 상의·하의 색이 글자로만 표시돼 "입어보기 전엔 느낌이 안 온다"는 피드백에 대한 응답 —
- * 각 아이템 문구에 맞는 실제 의류 모양에 색을 입혀 한눈에 보이게 한다.
+ * 조각 목록을 그대로 그리는 실루엣.
+ * 코디(아이템 문구 기반)와 색 조합 미리보기(색만 기반)가 같은 그림을 공유하도록 열어 둔다 (FR-36).
  */
-export default function OutfitSilhouette({ items }: Props) {
+export function PieceSilhouette({ pieces, className = 'silhouette' }: { pieces: SilhouettePiece[]; className?: string }) {
   // 순수 색상 미리보기라 스크린리더에 전달할 정보가 없고, 바로 옆 아이템 목록이 같은 내용을 텍스트로 이미 제공한다.
   // role="img"+aria-label을 쓰면 색 정보 없이 문구만 중복으로 다시 읽혀 오히려 혼란스러우므로 장식으로 숨긴다.
   return (
     <svg
-      className="silhouette"
+      className={className}
       viewBox={`0 0 ${SILHOUETTE_VIEWBOX.width} ${SILHOUETTE_VIEWBOX.height}`}
       aria-hidden="true"
     >
-      {buildSilhouette(items).map((piece, i) => (
+      {pieces.map((piece, i) => (
         <Piece key={i} {...piece} />
       ))}
     </svg>
   );
+}
+
+/**
+ * 코디를 실제 색으로 칠한 미니 실루엣 (FR-19).
+ * 상의·하의 색이 글자로만 표시돼 "입어보기 전엔 느낌이 안 온다"는 피드백에 대한 응답 —
+ * 각 아이템 문구에 맞는 실제 의류 모양에 색을 입혀 한눈에 보이게 한다.
+ */
+export default function OutfitSilhouette({ items, className }: Props) {
+  return <PieceSilhouette pieces={buildSilhouette(items)} className={className} />;
 }

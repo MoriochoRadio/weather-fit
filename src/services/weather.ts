@@ -1,4 +1,4 @@
-import type { DailyForecast, WeatherSummary } from '../types';
+import type { DailyForecast, DayWeather, HourlyForecast, WeatherSummary } from '../types';
 
 interface ForecastResponse {
   /** timezone=auto로 정해진 조회 지역의 UTC 오프셋(초) — 응답에 없을 수도 있어 옵셔널 */
@@ -18,6 +18,7 @@ interface ForecastResponse {
     precipitation_sum: number[];
     weather_code: number[];
     uv_index_max?: (number | null)[];
+    wind_speed_10m_max?: (number | null)[];
   };
   hourly: {
     time: string[];
@@ -30,8 +31,8 @@ interface ForecastResponse {
 
 const TIMEOUT_MS = 10_000;
 const HOURS_PER_DAY = 24;
-/** 오늘 이후 며칠까지 주간 예보로 보여줄지 (FR-31) */
-const WEEK_DAYS = 6;
+/** 오늘 말고 며칠 앞까지 날짜로 고를 수 있게 할지 (FR-35) */
+const FORWARD_DAYS = 6;
 
 /** 필수 필드가 있는지 확인 — API가 부분 장애로 스키마가 어긋난 응답을 주면 조용히 죽지 않고 명확한 에러를 던진다 */
 function assertValidResponse(data: unknown): asserts data is ForecastResponse {
@@ -107,10 +108,11 @@ export async function fetchWeather(
   url.searchParams.set('current', 'temperature_2m,apparent_temperature,weather_code,wind_speed_10m');
   url.searchParams.set(
     'daily',
-    'temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,weather_code,uv_index_max',
+    // wind_speed_10m_max: 오늘이 아닌 날짜의 강풍 조언에 현재 실측 풍속을 쓰지 않기 위해 (FR-35)
+    'temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,weather_code,uv_index_max,wind_speed_10m_max',
   );
   url.searchParams.set('hourly', 'temperature_2m,apparent_temperature,precipitation_probability,weather_code');
-  // 어제 비교(FR-30)용 1일 + 오늘/주간 예보(FR-31)용 7일
+  // 어제 비교(FR-30)용 1일 + 오늘~엿새 뒤 날짜 선택(FR-35)용 7일
   url.searchParams.set('past_days', '1');
   url.searchParams.set('forecast_days', '7');
   url.searchParams.set('timezone', 'auto');
@@ -152,16 +154,46 @@ export async function fetchWeather(
 
   const yesterday = day(-1);
   const tomorrow = day(1);
-  const week: DailyForecast[] = [];
-  for (let n = 1; n <= WEEK_DAYS; n++) {
-    const f = day(n);
-    if (f) week.push(f);
-  }
 
   // hourly는 요청한 날짜 수만큼 이어져 온다. 시각(0~23)만 저장하므로 오늘 24개만 잘라 쓰지 않으면
   // 어제 09시·오늘 09시·내일 09시가 같은 "9"로 뭉개져 브리핑·추천 기준온도가 오염된다 (QA).
   const hi = findDayStart(data.hourly.time, today, 0);
   const slice = <T>(arr: T[]): T[] => arr.slice(hi, hi + HOURS_PER_DAY);
+
+  /** 날짜 문자열로 그날 24시간을 잘라낸다 — 오늘이 아닌 날짜의 추천에 쓴다 (FR-35) */
+  const hourlyOf = (date: string): HourlyForecast | undefined => {
+    const start = data.hourly.time.findIndex((t) => t.startsWith(date));
+    if (start < 0) return undefined;
+    const cut = <T>(arr: T[]): T[] => arr.slice(start, start + HOURS_PER_DAY);
+    const hours = cut(data.hourly.time).map((t) => new Date(t).getHours());
+    if (hours.length === 0) return undefined;
+    return {
+      hours,
+      temp: cut(data.hourly.temperature_2m),
+      feelsLike: cut(data.hourly.apparent_temperature),
+      precipProb: cut(data.hourly.precipitation_probability).map((p) => p ?? 0),
+      weatherCode: cut(data.hourly.weather_code),
+    };
+  };
+
+  // 0번이 오늘 — 날짜 선택 UI가 이 배열을 그대로 훑는다 (FR-35)
+  const days: DayWeather[] = [];
+  for (let n = 0; n <= FORWARD_DAYS; n++) {
+    const i = di + n;
+    if (i >= d.temperature_2m_max.length || d.temperature_2m_max[i] === undefined) break;
+    const date = d.time?.[i] ?? '';
+    days.push({
+      date,
+      tempMin: d.temperature_2m_min[i],
+      tempMax: d.temperature_2m_max[i],
+      precipProb: d.precipitation_probability_max[i] ?? 0,
+      precipSum: d.precipitation_sum[i] ?? 0,
+      weatherCode: d.weather_code[i],
+      uvIndex: d.uv_index_max?.[i] ?? undefined,
+      windMax: d.wind_speed_10m_max?.[i] ?? undefined,
+      hourly: date ? hourlyOf(date) : undefined,
+    });
+  }
 
   return {
     city: cityName,
@@ -183,7 +215,7 @@ export async function fetchWeather(
         }
       : undefined,
     yesterday: yesterday ? { tempMin: yesterday.tempMin, tempMax: yesterday.tempMax } : undefined,
-    week: week.length > 0 ? week : undefined,
+    days: days.length > 0 ? days : undefined,
     hourly: {
       hours: slice(data.hourly.time).map((t) => new Date(t).getHours()),
       temp: slice(data.hourly.temperature_2m),

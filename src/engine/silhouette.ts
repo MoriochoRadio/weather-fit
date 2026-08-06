@@ -87,6 +87,28 @@ export function detailStroke(hex: string): string {
   return luma > 0.55 ? 'rgba(0,0,0,0.34)' : 'rgba(255,255,255,0.4)';
 }
 
+/** 조각별 자리 — 코디 실루엣과 색 조합 미리보기가 같은 골격을 쓰도록 상수로 뺀다 */
+const SLOT = {
+  upper: { x: 14, y: 2, width: 72, height: 68 },
+  bottom: { x: 26, y: 64, width: 48, height: 52 },
+  shoeLeft: { x: 13, y: 110, width: 36, height: 20 },
+  shoeRight: { x: 51, y: 110, width: 36, height: 20 },
+};
+
+/**
+ * 색 두 개만으로 그리는 실루엣 (FR-36 색 조합 보기).
+ * 아이템 문구가 없으므로 가장 기본적인 옷(니트·긴바지·구두)으로 고정한다 —
+ * 여기서 봐야 할 것은 옷 종류가 아니라 **위아래 색이 붙었을 때의 인상**이다.
+ */
+export function buildPairSilhouette(topColor: string, bottomColor: string, shoesColor: string): SilhouettePiece[] {
+  return [
+    { asset: CLOTHING.knit, color: topColor, ...SLOT.upper },
+    { asset: CLOTHING.trousers, color: bottomColor, ...SLOT.bottom },
+    { asset: CLOTHING.dressShoe, color: shoesColor, ...SLOT.shoeLeft },
+    { asset: CLOTHING.dressShoe, color: shoesColor, ...SLOT.shoeRight, flip: true },
+  ];
+}
+
 export function buildSilhouette(items: OutfitItems): SilhouettePiece[] {
   const topColor = extractColor(items.top, '#c8ccd2');
   // "동일 톤/원단" 문구는 색 이름이 없는 대신 상의와 같은 색이라는 뜻이므로 상의 색을 이어받는다
@@ -97,13 +119,13 @@ export function buildSilhouette(items: OutfitItems): SilhouettePiece[] {
 
   // 아우터가 있으면 상의 대신 아우터만 보여준다 (겉에서 보이는 실제 모습에 가깝게)
   const upper: SilhouettePiece = items.outer
-    ? { asset: outerAsset(items.outer), color: extractColor(items.outer, '#8b8f98'), x: 14, y: 2, width: 72, height: 68 }
-    : { asset: topAsset(items.top), color: topColor, x: 14, y: 2, width: 72, height: 68 };
+    ? { asset: outerAsset(items.outer), color: extractColor(items.outer, '#8b8f98'), ...SLOT.upper }
+    : { asset: topAsset(items.top), color: topColor, ...SLOT.upper };
 
   return [
     upper,
-    { asset: bottomAsset(items.bottom), color: bottomColor, x: 26, y: 64, width: 48, height: 52 },
-    { asset: shoes, color: shoesColor, x: 13, y: 110, width: 36, height: 20 },
-    { asset: shoes, color: shoesColor, x: 51, y: 110, width: 36, height: 20, flip: true },
+    { asset: bottomAsset(items.bottom), color: bottomColor, ...SLOT.bottom },
+    { asset: shoes, color: shoesColor, ...SLOT.shoeLeft },
+    { asset: shoes, color: shoesColor, ...SLOT.shoeRight, flip: true },
   ];
 }
