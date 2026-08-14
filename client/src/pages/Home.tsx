@@ -207,6 +207,12 @@ function formatKoreanDate() {
   return new Intl.DateTimeFormat("ko-KR", { month: "long", day: "numeric", weekday: "long" }).format(new Date());
 }
 
+function formatWeatherTimestamp(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "기준 시각 확인 중";
+  return new Intl.DateTimeFormat("ko-KR", { hour: "2-digit", minute: "2-digit" }).format(date);
+}
+
 function todayKey() {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(new Date());
 }
@@ -648,6 +654,7 @@ export default function Home() {
               <>
                 <div className="temperature-monolith"><span>{Math.round(weather.current.temperature_2m)}</span><sup>°</sup><div><WeatherIcon size={22} strokeWidth={1.4} /><strong>{weatherLabel(weather.current.weather_code)}</strong></div></div>
                 <p className="hero-summary">오늘의 체감은 <strong>{weather.current.apparent_temperature >= 28 ? "더움" : weather.current.apparent_temperature <= 12 ? "쌀쌀함" : "가벼움"}</strong>에 가까워요. 옷의 공기층을 조절해 보세요.</p>
+                <p className={errorText ? "weather-as-of is-cached" : "weather-as-of"}><Clock3 size={13} /> {errorText ? "마지막 확인" : "기상 기준"} {formatWeatherTimestamp(weather.current.time)}</p>
               </>
             ) : (
               <div className="hero-empty"><p>기상 정보를 연결하지 못했어요.</p><button type="button" onClick={() => void loadWeather(city)}>날씨 다시 불러오기</button></div>
