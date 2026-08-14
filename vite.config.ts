@@ -203,11 +203,15 @@ function vitePluginStorageProxy(): Plugin {
   };
 }
 
-const plugins = [react(), tailwindcss(), jsxLocPlugin(), vitePluginManusRuntime(), vitePluginManusDebugCollector(), vitePluginStorageProxy()];
+const isGitHubPagesBuild = process.env.GITHUB_PAGES === "true";
+// GitHub Pages는 독립적인 정적 호스팅이므로 관리형 미리보기 전용 런타임·로그 수집·저장소 프록시를 포함하지 않는다.
+const plugins = isGitHubPagesBuild
+  ? [react(), tailwindcss()]
+  : [react(), tailwindcss(), jsxLocPlugin(), vitePluginManusRuntime(), vitePluginManusDebugCollector(), vitePluginStorageProxy()];
 
 export default defineConfig({
   // GitHub Pages 프로젝트 경로에서만 하위 경로를 사용하고, 로컬·관리형 개발은 루트로 유지한다.
-  base: process.env.GITHUB_PAGES === "true" ? "/weather-fit/" : "/",
+  base: isGitHubPagesBuild ? "/weather-fit/" : "/",
   plugins,
   resolve: {
     alias: {
