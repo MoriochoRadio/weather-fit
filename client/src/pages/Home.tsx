@@ -559,15 +559,23 @@ export default function Home() {
   };
 
   const shareOutfit = async () => {
-    const text = `${city.name} ${weather ? `${Math.round(weather.current.apparent_temperature)}°` : "오늘"} · ${outfit.name}\n${outfit.top}, ${outfit.bottom}, ${outfit.shoes}`;
+    const weatherSummary = weather ? `체감 ${Math.round(weather.current.apparent_temperature)}° · 강수 ${weather.daily.precipitation_probability_max[0] ?? 0}%` : "오늘의 날씨";
+    const departureSummary = departureAdvice ? `출발: ${departureAdvice.title} — ${departureAdvice.detail}` : "출발 시점: 현재 예보를 확인해 주세요.";
+    const preparationSummary = checklist.length ? `챙길 것: ${checklist.map((item) => item.label).join(" · ")}` : "챙길 것: 오늘의 준비물을 확인해 주세요.";
+    const text = `${city.name} · ${weatherSummary}\n${outfit.name}\n${outfit.top}, ${outfit.bottom}, ${outfit.shoes}\n${departureSummary}\n${preparationSummary}`;
     try {
-      if (navigator.share) await navigator.share({ title: "Weather Fit 오늘의 코디", text });
-      else {
+      if (navigator.share) {
+        await navigator.share({ title: "Weather Fit 오늘의 코디", text });
+        setNotice("외출 준비가 포함된 코디 요약을 공유했어요.");
+      } else if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(text);
-        setNotice("코디 요약을 클립보드에 복사했어요.");
+        setNotice("외출 준비가 포함된 코디 요약을 복사했어요.");
+      } else {
+        setNotice("이 브라우저에서는 자동 복사를 지원하지 않아요.");
       }
-    } catch {
-      // 공유 창 취소는 오류가 아니라 사용자의 의도된 종료다.
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      setNotice("코디 공유를 완료하지 못했어요. 잠시 뒤 다시 시도해 주세요.");
     }
   };
 
