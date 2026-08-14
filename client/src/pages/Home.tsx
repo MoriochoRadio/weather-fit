@@ -373,6 +373,11 @@ export default function Home() {
     void loadWeather(city, Boolean(snapshot));
   }, [city.id]);
 
+  useEffect(() => {
+    const refreshId = window.setInterval(() => void loadWeather(city, true), 15 * 60 * 1000);
+    return () => window.clearInterval(refreshId);
+  }, [city, loadWeather]);
+
   useEffect(() => writeStorage(STORAGE_KEYS.city, city), [city]);
   useEffect(() => writeStorage(STORAGE_KEYS.style, style), [style]);
   useEffect(() => writeStorage(STORAGE_KEYS.tone, tone), [tone]);
