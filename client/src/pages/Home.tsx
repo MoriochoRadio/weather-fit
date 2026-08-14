@@ -160,6 +160,11 @@ function cityFromUnknown(value: unknown): City | null {
   return { id: value.id, name: value.name, subtitle: value.subtitle, latitude: value.latitude, longitude: value.longitude };
 }
 
+function citiesFromUnknown(value: unknown): City[] {
+  if (!Array.isArray(value)) return [];
+  return Array.from(new Map(value.map(cityFromUnknown).filter((city): city is City => Boolean(city)).map((city) => [city.id, city])).values());
+}
+
 function lookRecordsFromUnknown(value: unknown): Record<string, LookRecord> {
   const candidates = Array.isArray(value) ? value : isRecord(value) ? Object.values(value) : [];
   return candidates.reduce<Record<string, LookRecord>>((records, candidate) => {
@@ -575,6 +580,8 @@ export default function Home() {
       wornLooks: worn,
       lookRecords: archiveItems,
       missingItems: missing,
+      favoriteCities,
+      preparedTomorrow,
     };
     const blob = new Blob([JSON.stringify(archive, null, 2)], { type: "application/json" });
     const href = URL.createObjectURL(blob);
@@ -598,6 +605,8 @@ export default function Home() {
       const importedWorn = stringArray(parsed.wornLooks);
       const importedMissing = stringArray(parsed.missingItems);
       const importedRecords = lookRecordsFromUnknown(parsed.lookRecords);
+      const importedFavorites = citiesFromUnknown(parsed.favoriteCities);
+      const importedPreparedTomorrow = stringArray(parsed.preparedTomorrow);
       if (!importedCity && !importedSaved.length && !importedWorn.length && !importedMissing.length) throw new Error("empty archive");
 
       if (importedCity) setCity(importedCity);
@@ -609,6 +618,8 @@ export default function Home() {
       setWorn(Array.from(new Set(importedWorn)));
       setMissing(Array.from(new Set(importedMissing)));
       setLookRecords(importedRecords);
+      if ("favoriteCities" in parsed) setFavoriteCities(importedFavorites);
+      if ("preparedTomorrow" in parsed) setPreparedTomorrow(Array.from(new Set(importedPreparedTomorrow)));
       setNotice(`기록 ${new Set([...importedSaved, ...importedWorn]).size}건과 설정을 불러왔어요.`);
     } catch {
       setNotice("Weather Fit에서 내보낸 올바른 JSON 기록 파일을 선택해 주세요.");
