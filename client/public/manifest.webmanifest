@@ -10,9 +10,9 @@
   "background_color": "#f4f1e9",
   "icons": [
     {
-      "src": "assets/weather-fit-logo.png",
+      "src": "assets/weather-fit-logo.webp",
       "sizes": "512x512",
-      "type": "image/png",
+      "type": "image/webp",
       "purpose": "any maskable"
     }
   ]

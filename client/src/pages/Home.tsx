@@ -355,7 +355,7 @@ export default function Home() {
     <div className="weather-fit-app">
       <header className="app-header">
         <a className="brand-lockup" href="#today" aria-label="Weather Fit 홈으로">
-          <img src="/weather-fit/assets/weather-fit-logo.png" alt="" className="brand-mark" />
+          <img src="/weather-fit/assets/weather-fit-logo.webp" alt="" className="brand-mark" />
           <span>
             <strong>Weather Fit</strong>
             <small>daily dressing index</small>
@@ -435,7 +435,7 @@ export default function Home() {
               <img src={outfitImage.src} alt={outfitImage.alt} loading="lazy" />
             ) : (
               <>
-                <img src="/weather-fit/assets/weather-fit-closet.png" alt="차분한 색감의 니트와 가죽 소품이 정돈된 옷장" loading="lazy" />
+                <img src="/weather-fit/assets/weather-fit-closet.webp" alt="차분한 색감의 니트와 가죽 소품이 정돈된 옷장" loading="lazy" />
                 <span className="image-pending-note">전용 실루엣 준비 중</span>
               </>
             )}
@@ -467,7 +467,7 @@ export default function Home() {
           </article>
           <article className="week-card">
             <div className="card-topline"><span className="eyebrow">7-day fabric forecast</span><ExternalLink size={17} /></div>
-            <div className="week-content"><img src="/weather-fit/assets/weather-fit-weather-moods.png" alt="맑음과 비, 선선한 날의 옷차림 분위기" />
+            <div className="week-content"><img src="/weather-fit/assets/weather-fit-weather-moods.webp" alt="맑음과 비, 선선한 날의 옷차림 분위기" />
               <div className="week-list">{weather ? weather.daily.time.slice(0, 5).map((date, index) => <div key={date} className="week-day"><span>{index === 0 ? "오늘" : dayName(date, true)}</span><i className={weather.daily.precipitation_probability_max[index] >= 50 ? "weather-dot rain" : "weather-dot"} /><strong>{Math.round(weather.daily.temperature_2m_max[index])}°</strong><small>{weatherLabel(weather.daily.weather_code[index])}</small></div>) : <p>예보를 준비하고 있어요.</p>}</div>
             </div>
           </article>

@@ -2,10 +2,10 @@ const CACHE_NAME = "weather-fit-pages-v1";
 const APP_SHELL = [
   "./",
   "./manifest.webmanifest",
-  "./assets/weather-fit-logo.png",
-  "./assets/weather-fit-hero.png",
-  "./assets/weather-fit-closet.png",
-  "./assets/weather-fit-weather-moods.png",
+  "./assets/weather-fit-logo.webp",
+  "./assets/weather-fit-hero.webp",
+  "./assets/weather-fit-closet.webp",
+  "./assets/weather-fit-weather-moods.webp",
 ];
 
 self.addEventListener("install", (event) => {
