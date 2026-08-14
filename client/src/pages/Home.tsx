@@ -301,6 +301,18 @@ export default function Home() {
     { id: "layers", label: weather.current.apparent_temperature >= 28 ? "여벌 이너" : "겉옷 점검", detail: weather.current.apparent_temperature >= 28 ? "땀 자국과 실내 냉방 대비" : "저녁 체감 변화 대비", icon: Layers3 },
     { id: "occasion", label: occasion === "any" ? "일정 확인" : occasion === "work" ? "출근 준비" : occasion === "weekend" ? "주말 동선" : "저녁 일정", detail: occasionLine(occasion), icon: ShieldCheck },
   ] : [];
+  const weekPrep = useMemo(() => {
+    if (!weather) return [];
+    const days = weather.daily.time.slice(0, 5);
+    const rainDays = days.filter((_, index) => (weather.daily.precipitation_probability_max[index] ?? 0) >= 50).length;
+    const highUvDays = days.filter((_, index) => (weather.daily.uv_index_max[index] ?? 0) >= 6).length;
+    const hotDays = days.filter((_, index) => (weather.daily.temperature_2m_max[index] ?? 0) >= 28).length;
+    const prep = [] as { id: string; label: string; detail: string }[];
+    if (rainDays) prep.push({ id: "rain", label: "방수 신발", detail: `앞으로 5일 중 ${rainDays}일은 강수 대비가 필요해요.` });
+    if (highUvDays) prep.push({ id: "sun", label: "차양 아이템", detail: `자외선이 높은 날이 ${highUvDays}일 있어요.` });
+    if (hotDays) prep.push({ id: "heat", label: "여벌 이너", detail: `최고 ${Math.max(...weather.daily.temperature_2m_max.slice(0, 5).map(Math.round))}°까지 올라가요.` });
+    return prep.length ? prep : [{ id: "base", label: "기본 레이어", detail: "이번 주는 오늘의 베이스 룩을 중심으로 준비해도 좋아요." }];
+  }, [weather]);
 
   const selectCity = (next: City) => {
     setCity(next);
@@ -471,6 +483,11 @@ export default function Home() {
               <div className="week-list">{weather ? weather.daily.time.slice(0, 5).map((date, index) => <div key={date} className="week-day"><span>{index === 0 ? "오늘" : dayName(date, true)}</span><i className={weather.daily.precipitation_probability_max[index] >= 50 ? "weather-dot rain" : "weather-dot"} /><strong>{Math.round(weather.daily.temperature_2m_max[index])}°</strong><small>{weatherLabel(weather.daily.weather_code[index])}</small></div>) : <p>예보를 준비하고 있어요.</p>}</div>
             </div>
           </article>
+        </section>
+
+        <section className="week-prep" aria-label="이번 주 옷장 준비">
+          <div><span className="eyebrow">Wardrobe ahead</span><h2>이번 주, 미리 꺼내둘 것.</h2></div>
+          <ul>{weekPrep.map((item) => <li key={item.id}><strong>{item.label}</strong><small>{item.detail}</small></li>)}</ul>
         </section>
 
         <section className="saved-rail" aria-label="나의 Weather Fit 기록">
