@@ -192,6 +192,13 @@ function getPreparedness(weather: WeatherData) {
   return { label: "가벼운 겉옷", detail: "실내외 온도 차 대비", icon: Shirt };
 }
 
+function nextRainWindow(weather: WeatherData) {
+  const currentIndex = Math.max(0, weather.hourly.time.findIndex((time) => time >= weather.current.time));
+  const nextIndex = weather.hourly.precipitation_probability.findIndex((chance, index) => index >= currentIndex && chance >= 40);
+  if (nextIndex < 0) return null;
+  return weather.hourly.time[nextIndex]?.slice(11, 16) ?? null;
+}
+
 export default function Home() {
   const [city, setCity] = useState<City>(() => readStorage(STORAGE_KEYS.city, CITIES[0]));
   const [weather, setWeather] = useState<WeatherData | null>(() => readStorage<WeatherData | null>(STORAGE_KEYS.snapshot, null));
@@ -292,9 +299,10 @@ export default function Home() {
   const PreparednessIcon = weather ? getPreparedness(weather).icon : Shirt;
   const WeatherIcon = weather ? weatherIcon(weather.current.weather_code) : CloudSun;
   const missingPieces = [outfit.top, outfit.bottom, outfit.shoes, outfit.accessory].filter((item) => missing.includes(item));
+  const rainWindow = weather ? nextRainWindow(weather) : null;
   const fitSignals = weather ? [
     { label: "체감 기준", value: `${Math.round(weather.current.apparent_temperature)}°`, detail: comfort === "warmer" ? "추위를 타는 기준으로 한 단계 보온" : comfort === "cooler" ? "더위를 타는 기준으로 한 단계 가볍게" : "현재 체감을 그대로 반영" },
-    { label: "강수 대응", value: `${weather.daily.precipitation_probability_max[0] ?? 0}%`, detail: (weather.daily.precipitation_probability_max[0] ?? 0) >= 50 ? "방수 신발과 우산으로 자동 보정" : "가벼운 외출 기준" },
+    { label: "강수 대응", value: `${weather.daily.precipitation_probability_max[0] ?? 0}%`, detail: (weather.daily.precipitation_probability_max[0] ?? 0) >= 50 ? `${rainWindow ? `${rainWindow} 이후` : "오늘"} 비 대비로 자동 보정` : "가벼운 외출 기준" },
     { label: "옷장 준비", value: missingPieces.length ? `${missingPieces.length}개 결품` : "모두 준비", detail: missingPieces.length ? `${missingPieces.slice(0, 2).join(" · ")} 확인 필요` : "바로 입을 수 있는 조합" },
   ] : [];
   const checklist = weather ? [
