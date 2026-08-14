@@ -320,6 +320,7 @@ export default function Home() {
   const [notice, setNotice] = useState("");
   const [errorText, setErrorText] = useState("");
   const weatherRequestId = useRef(0);
+  const cityTriggerRef = useRef<HTMLButtonElement>(null);
 
   const loadWeather = useCallback(async (target: City, silent = false) => {
     const requestId = ++weatherRequestId.current;
@@ -374,7 +375,10 @@ export default function Home() {
   useEffect(() => {
     if (!cityOpen) return;
     const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setCityOpen(false);
+      if (event.key === "Escape") {
+        setCityOpen(false);
+        requestAnimationFrame(() => cityTriggerRef.current?.focus());
+      }
     };
     window.addEventListener("keydown", closeOnEscape);
     return () => window.removeEventListener("keydown", closeOnEscape);
@@ -469,6 +473,7 @@ export default function Home() {
   const selectCity = (next: City) => {
     setCity(next);
     setCityOpen(false);
+    requestAnimationFrame(() => cityTriggerRef.current?.focus());
   };
 
   const toggleFavoriteCity = () => {
@@ -605,7 +610,7 @@ export default function Home() {
         </a>
         <div className="header-meta">
           <span className="today-date">{formatKoreanDate()}</span>
-          <button type="button" className="city-trigger" onClick={() => setCityOpen((open) => !open)} aria-expanded={cityOpen}>
+          <button ref={cityTriggerRef} type="button" className="city-trigger" onClick={() => setCityOpen((open) => !open)} aria-expanded={cityOpen} aria-controls="city-menu" aria-haspopup="dialog">
             <MapPin size={15} strokeWidth={1.9} /> {city.name} <ChevronDown size={14} />
           </button>
           <button type="button" className="icon-button" onClick={() => void loadWeather(city)} aria-label="날씨 새로고침" title="날씨 새로고침">
@@ -613,7 +618,7 @@ export default function Home() {
           </button>
         </div>
         {cityOpen && (
-          <div className="city-menu" role="dialog" aria-label="지역 선택">
+          <div id="city-menu" className="city-menu" role="dialog" aria-modal="true" aria-label="지역 선택">
             <div className="city-menu-head"><span>어디의 날씨를 볼까요?</span><div><button type="button" onClick={useLocation}>현재 위치 사용</button><button type="button" className="city-favorite-toggle" onClick={toggleFavoriteCity} aria-pressed={isCityFavorite}><Star size={13} fill={isCityFavorite ? "currentColor" : "none"} /> {isCityFavorite ? "저장됨" : "이 지역 저장"}</button></div></div>
             {CITIES.map((item) => (
               <button key={item.id} type="button" className={city.id === item.id ? "city-option is-active" : "city-option"} onClick={() => selectCity(item)}>
@@ -624,7 +629,7 @@ export default function Home() {
         )}
       </header>
 
-      {notice && <button type="button" className="notice" onClick={() => setNotice("")} role="status" aria-live="polite">{notice}<span>닫기</span></button>}
+      {notice && <div className="notice" role="status" aria-live="polite"><span>{notice}</span><button type="button" onClick={() => setNotice("")} aria-label="안내 닫기">닫기</button></div>}
 
       <main id="today" className="content-shell">
         {errorText && <div className="connection-note" role="status"><CloudRain size={16} /> {errorText}<button type="button" onClick={() => void loadWeather(city)}>다시 시도</button></div>}
