@@ -143,6 +143,10 @@ function writeStorage(key: string, value: unknown) {
   }
 }
 
+function weatherSnapshotKey(cityId: string) {
+  return `${STORAGE_KEYS.snapshot}-${cityId}`;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -296,7 +300,10 @@ function buildHourlyTimeline(weather: WeatherData): HourlyPoint[] {
 
 export default function Home() {
   const [city, setCity] = useState<City>(() => readStorage(STORAGE_KEYS.city, CITIES[0]));
-  const [weather, setWeather] = useState<WeatherData | null>(() => readStorage<WeatherData | null>(STORAGE_KEYS.snapshot, null));
+  const [weather, setWeather] = useState<WeatherData | null>(() => {
+    const initialCity = readStorage(STORAGE_KEYS.city, CITIES[0]);
+    return readStorage<WeatherData | null>(weatherSnapshotKey(initialCity.id), readStorage<WeatherData | null>(STORAGE_KEYS.snapshot, null));
+  });
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [style, setStyle] = useState<StyleId>(() => readStorage<StyleId>(STORAGE_KEYS.style, "oldmoney"));
   const [tone, setTone] = useState<ToneId>(() => readStorage<ToneId>(STORAGE_KEYS.tone, "all"));
@@ -333,19 +340,22 @@ export default function Home() {
       const data = (await response.json()) as WeatherData;
       if (requestId !== weatherRequestId.current) return;
       setWeather(data);
+      writeStorage(weatherSnapshotKey(target.id), data);
       writeStorage(STORAGE_KEYS.snapshot, data);
       setLoadState("ready");
     } catch {
       if (requestId !== weatherRequestId.current) return;
-      setLoadState(weather ? "ready" : "error");
-      setErrorText(weather ? "최신 날씨를 가져오지 못해 마지막으로 확인한 정보를 표시하고 있어요." : "날씨 정보를 불러오지 못했습니다. 연결을 확인한 뒤 다시 시도해 주세요.");
+      const fallback = readStorage<WeatherData | null>(weatherSnapshotKey(target.id), null);
+      setWeather(fallback);
+      setLoadState(fallback ? "ready" : "error");
+      setErrorText(fallback ? `${target.name}의 최신 날씨를 가져오지 못해 마지막으로 확인한 정보를 표시하고 있어요.` : "날씨 정보를 불러오지 못했습니다. 연결을 확인한 뒤 다시 시도해 주세요.");
     }
-  }, [weather]);
+  }, []);
 
   useEffect(() => {
-    void loadWeather(city);
-    // 최초 진입과 도시 변경 시에만 요청한다.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const snapshot = readStorage<WeatherData | null>(weatherSnapshotKey(city.id), null);
+    setWeather(snapshot);
+    void loadWeather(city, Boolean(snapshot));
   }, [city.id]);
 
   useEffect(() => writeStorage(STORAGE_KEYS.city, city), [city]);
