@@ -96,10 +96,11 @@ const OUTFIT_LIBRARY: Record<StyleId, Record<"hot" | "mild" | "cool", { name: st
 };
 
 /**
- * 75개 전용 룩 이미지 전환의 첫 매핑. 이미지가 준비된 룩은 실제 전신 실루엣을 우선 노출하고,
- * 나머지는 생성 완료 후 같은 키 규칙으로 추가한다.
+ * 기상 아틀리에 전용 룩 이미지 매핑. 스타일·체감 기온·강수 조건을 분리해
+ * 추천 근거와 같은 실루엣이 카드에서 바로 읽히도록 한다.
  */
 const OUTFIT_IMAGE_MAP: Partial<Record<`${StyleId}-${"hot" | "mild" | "cool"}`, { src: string; alt: string }>> = {};
+const RAIN_OUTFIT_IMAGE_MAP: Partial<Record<StyleId, { src: string; alt: string }>> = {};
 
 const STORAGE_KEYS = {
   city: "weatherfit-studio-city",
@@ -284,10 +285,9 @@ export default function Home() {
   const outfitId = `${style}-${weatherBand}-${occasion}`;
   const isSaved = saved.includes(outfitId);
   const isWorn = worn.includes(outfitId);
-  // 높은 강수에서는 신발·우산 보정이 적용되므로, 원본 실루엣 대신 중립 대체 상태를 표시한다.
-  const outfitImage = (weather?.daily.precipitation_probability_max[0] ?? 0) >= 50
-    ? undefined
-    : OUTFIT_IMAGE_MAP[`${style}-${weatherBand}`];
+  const rainRisk = (weather?.daily.precipitation_probability_max[0] ?? 0) >= 50;
+  // 생성 완료 자산만 이 매핑에 등록한다. 실패한 생성 작업은 기존 옷장 비주얼로 안전하게 대체한다.
+  const outfitImage = rainRisk ? RAIN_OUTFIT_IMAGE_MAP[style] : OUTFIT_IMAGE_MAP[`${style}-${weatherBand}`];
   const PreparednessIcon = weather ? getPreparedness(weather).icon : Shirt;
   const WeatherIcon = weather ? weatherIcon(weather.current.weather_code) : CloudSun;
   const missingPieces = [outfit.top, outfit.bottom, outfit.shoes, outfit.accessory].filter((item) => missing.includes(item));
@@ -355,7 +355,7 @@ export default function Home() {
     <div className="weather-fit-app">
       <header className="app-header">
         <a className="brand-lockup" href="#today" aria-label="Weather Fit 홈으로">
-          <img src="/assets/weather-fit-logo.png" alt="" className="brand-mark" />
+          <img src="/manus-storage/weather-fit-logo_f18afb02.png" alt="" className="brand-mark" />
           <span>
             <strong>Weather Fit</strong>
             <small>daily dressing index</small>
@@ -435,7 +435,7 @@ export default function Home() {
               <img src={outfitImage.src} alt={outfitImage.alt} loading="lazy" />
             ) : (
               <>
-                <img src="/assets/weather-fit-closet.png" alt="차분한 색감의 니트와 가죽 소품이 정돈된 옷장" loading="lazy" />
+                <img src="/manus-storage/weather-fit-closet_ad15a99f.png" alt="차분한 색감의 니트와 가죽 소품이 정돈된 옷장" loading="lazy" />
                 <span className="image-pending-note">전용 실루엣 준비 중</span>
               </>
             )}
@@ -467,7 +467,7 @@ export default function Home() {
           </article>
           <article className="week-card">
             <div className="card-topline"><span className="eyebrow">7-day fabric forecast</span><ExternalLink size={17} /></div>
-            <div className="week-content"><img src="/assets/weather-fit-weather-moods.png" alt="맑음과 비, 선선한 날의 옷차림 분위기" />
+            <div className="week-content"><img src="/manus-storage/weather-fit-weather-moods_48c51d74.png" alt="맑음과 비, 선선한 날의 옷차림 분위기" />
               <div className="week-list">{weather ? weather.daily.time.slice(0, 5).map((date, index) => <div key={date} className="week-day"><span>{index === 0 ? "오늘" : dayName(date, true)}</span><i className={weather.daily.precipitation_probability_max[index] >= 50 ? "weather-dot rain" : "weather-dot"} /><strong>{Math.round(weather.daily.temperature_2m_max[index])}°</strong><small>{weatherLabel(weather.daily.weather_code[index])}</small></div>) : <p>예보를 준비하고 있어요.</p>}</div>
             </div>
           </article>
