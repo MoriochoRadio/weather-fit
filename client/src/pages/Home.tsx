@@ -37,6 +37,7 @@ type OccasionId = "any" | "work" | "weekend" | "evening";
 type LoadState = "loading" | "ready" | "error";
 type RiskLevel = "critical" | "attention";
 type WeatherRisk = { id: string; label: string; detail: string; action: string; level: RiskLevel };
+type LookRecord = { id: string; name: string; cityName: string; temperature?: number; condition?: string; savedAt?: string; wornAt?: string };
 
 type WeatherData = {
   current: {
@@ -119,6 +120,7 @@ const STORAGE_KEYS = {
   occasion: "weatherfit-studio-occasion",
   checklist: "weatherfit-studio-checklist",
   favoriteCities: "weatherfit-studio-favorite-cities",
+  lookRecords: "weatherfit-studio-look-records",
 };
 
 function readStorage<T>(key: string, fallback: T): T {
@@ -221,6 +223,18 @@ function getWeatherRisks(weather: WeatherData): WeatherRisk[] {
   return risks.slice(0, 2);
 }
 
+function outfitNameForId(id: string) {
+  const [styleId, band] = id.split("-") as [StyleId, "hot" | "mild" | "cool"];
+  return OUTFIT_LIBRARY[styleId]?.[band]?.name ?? "이전 코디 기록";
+}
+
+function formatArchiveDate(value?: string) {
+  if (!value) return "기록 시점 없음";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "기록 시점 없음";
+  return new Intl.DateTimeFormat("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(date);
+}
+
 export default function Home() {
   const [city, setCity] = useState<City>(() => readStorage(STORAGE_KEYS.city, CITIES[0]));
   const [weather, setWeather] = useState<WeatherData | null>(() => readStorage<WeatherData | null>(STORAGE_KEYS.snapshot, null));
@@ -234,6 +248,7 @@ export default function Home() {
   const [occasion, setOccasion] = useState<OccasionId>(() => readStorage<OccasionId>(STORAGE_KEYS.occasion, "any"));
   const [checkedSteps, setCheckedSteps] = useState<string[]>(() => readStorage<string[]>(`${STORAGE_KEYS.checklist}-${todayKey()}`, []));
   const [favoriteCities, setFavoriteCities] = useState<City[]>(() => readStorage<City[]>(STORAGE_KEYS.favoriteCities, []));
+  const [lookRecords, setLookRecords] = useState<Record<string, LookRecord>>(() => readStorage<Record<string, LookRecord>>(STORAGE_KEYS.lookRecords, {}));
   const [cityOpen, setCityOpen] = useState(false);
   const [notice, setNotice] = useState("");
   const [errorText, setErrorText] = useState("");
@@ -279,6 +294,7 @@ export default function Home() {
   useEffect(() => writeStorage(STORAGE_KEYS.occasion, occasion), [occasion]);
   useEffect(() => writeStorage(`${STORAGE_KEYS.checklist}-${todayKey()}`, checkedSteps), [checkedSteps]);
   useEffect(() => writeStorage(STORAGE_KEYS.favoriteCities, favoriteCities), [favoriteCities]);
+  useEffect(() => writeStorage(STORAGE_KEYS.lookRecords, lookRecords), [lookRecords]);
 
   useEffect(() => {
     if (!cityOpen) return;
@@ -347,6 +363,11 @@ export default function Home() {
     if (hotDays) prep.push({ id: "heat", label: "여벌 이너", detail: `최고 ${Math.max(...weather.daily.temperature_2m_max.slice(0, 5).map(Math.round))}°까지 올라가요.` });
     return prep.length ? prep : [{ id: "base", label: "기본 레이어", detail: "이번 주는 오늘의 베이스 룩을 중심으로 준비해도 좋아요." }];
   }, [weather]);
+  const archiveItems = useMemo(() => Array.from(new Set([...saved, ...worn])).map((id) => {
+    const record = lookRecords[id] ?? { id, name: outfitNameForId(id), cityName: "이전 기록" };
+    const recordedAt = [record.savedAt, record.wornAt].filter(Boolean).sort().at(-1);
+    return { ...record, isSaved: saved.includes(id), isWorn: worn.includes(id), recordedAt };
+  }).sort((a, b) => (b.recordedAt ?? "").localeCompare(a.recordedAt ?? "")), [lookRecords, saved, worn]);
 
   const isCityFavorite = favoriteCities.some((item) => item.id === city.id);
 
@@ -380,13 +401,25 @@ export default function Home() {
     );
   };
 
+  const currentRecord = (): LookRecord => ({ id: outfitId, name: outfit.name, cityName: city.name, temperature: weather ? Math.round(weather.current.apparent_temperature) : undefined, condition: weather ? weatherLabel(weather.current.weather_code) : undefined });
+
   const toggleSaved = () => {
-    setSaved((items) => (items.includes(outfitId) ? items.filter((id) => id !== outfitId) : [...items, outfitId]));
+    const nextSaved = !isSaved;
+    setSaved((items) => nextSaved ? [...items, outfitId] : items.filter((id) => id !== outfitId));
+    setLookRecords((items) => {
+      if (!nextSaved && !isWorn) { const next = { ...items }; delete next[outfitId]; return next; }
+      return { ...items, [outfitId]: { ...(items[outfitId] ?? currentRecord()), ...(nextSaved ? { ...currentRecord(), savedAt: new Date().toISOString() } : { savedAt: undefined }) } };
+    });
     setNotice(isSaved ? "저장한 룩에서 뺐어요." : "나중에 볼 룩으로 저장했어요.");
   };
 
   const toggleWorn = () => {
-    setWorn((items) => (items.includes(outfitId) ? items.filter((id) => id !== outfitId) : [...items, outfitId]));
+    const nextWorn = !isWorn;
+    setWorn((items) => nextWorn ? [...items, outfitId] : items.filter((id) => id !== outfitId));
+    setLookRecords((items) => {
+      if (!nextWorn && !isSaved) { const next = { ...items }; delete next[outfitId]; return next; }
+      return { ...items, [outfitId]: { ...(items[outfitId] ?? currentRecord()), ...(nextWorn ? { ...currentRecord(), wornAt: new Date().toISOString() } : { wornAt: undefined }) } };
+    });
     setNotice(isWorn ? "오늘 착용 기록을 지웠어요." : "오늘 입은 룩으로 기록했어요.");
   };
 
@@ -414,6 +447,7 @@ export default function Home() {
       preferences: { city, style, tone, comfort, occasion },
       savedLooks: saved,
       wornLooks: worn,
+      lookRecords: archiveItems,
       missingItems: missing,
     };
     const blob = new Blob([JSON.stringify(archive, null, 2)], { type: "application/json" });
@@ -563,6 +597,8 @@ export default function Home() {
           <div className="archive-stat"><Footprints size={20} /><strong>{worn.length}</strong><span>착용 기록</span></div>
           <div className="archive-detail"><Droplets size={18} /><p>날씨와 함께 남긴 기록은 다음 추천에서 가장 실용적인 출발점이 됩니다.</p><button type="button" className="archive-export" onClick={exportArchive}><Download size={14} /> 내 기록 내려받기</button></div>
         </section>
+
+        {archiveItems.length > 0 && <section className="history-ledger" aria-label="최근 코디 기록"><div className="history-ledger-title"><span className="eyebrow">Recent dressing log</span><h2>최근 남긴 선택</h2></div><ul>{archiveItems.slice(0, 3).map((item) => <li key={item.id}><div><strong>{item.name}</strong><span>{item.cityName}{item.temperature !== undefined ? ` · 체감 ${item.temperature}°` : ""}{item.condition ? ` · ${item.condition}` : ""}</span></div><div className="history-meta"><span>{item.isWorn ? "착용" : "저장"}{item.isWorn && item.isSaved ? " · 저장" : ""}</span><small>{formatArchiveDate(item.recordedAt)}</small></div></li>)}</ul></section>}
       </main>
 
       <footer className="app-footer"><span>WEATHER FIT / DAILY DRESSING INDEX</span><span>기상 데이터: Open-Meteo</span></footer>
