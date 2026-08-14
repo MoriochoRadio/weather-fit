@@ -1,0 +1,19 @@
+{
+  "name": "Weather Fit — 오늘의 코디",
+  "short_name": "Weather Fit",
+  "description": "날씨와 취향을 오늘 입을 한 벌로 번역하는 코디 가이드",
+  "lang": "ko",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "theme_color": "#123c36",
+  "background_color": "#f4f1e9",
+  "icons": [
+    {
+      "src": "assets/weather-fit-logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
