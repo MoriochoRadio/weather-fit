@@ -362,20 +362,27 @@ export default function Home() {
       ? current
       : OUTFIT_LIBRARY[style][periodFromTemp(temperature === 20 ? temperature + 2 : temperature)];
     const rainChance = weather?.daily.precipitation_probability_max[0] ?? 0;
+    const occasionAdjusted = occasion === "work"
+      ? { ...toneAdjusted, accessory: "구김 적은 토트백", alternate: "단정한 셔츠 재킷", note: `${toneAdjusted.note} 출근·미팅에는 형태가 흐트러지지 않는 가방과 한 겹을 더해 보세요.` }
+      : occasion === "weekend"
+        ? { ...toneAdjusted, accessory: "가벼운 크로스백", alternate: "편한 러닝 스니커", note: `${toneAdjusted.note} 주말 동선에는 손이 비는 가방과 오래 걸어도 편한 신발이 실용적이에요.` }
+        : occasion === "evening"
+          ? { ...toneAdjusted, accessory: "얇은 숄 또는 셔츠", alternate: "라이트 재킷", note: `${toneAdjusted.note} 해가 진 뒤와 실내 냉방을 위해 얇은 한 겹을 남겨두세요.` }
+          : toneAdjusted;
 
     // 강수 위험이 높은데도 샌들·캔버스화가 그대로 추천되던 모순을 막는다.
     // 실루엣과 스타일의 핵심은 보존하되, 발등과 소지품을 우선 보호하도록 한 항목만 교체한다.
     if (rainChance >= 50) {
       return {
-        ...toneAdjusted,
+        ...occasionAdjusted,
         shoes: "방수 레더 더비 슈즈",
         accessory: "접이식 우산",
-        note: `${toneAdjusted.note} 비가 예상되므로 발등을 덮는 방수 신발과 접이식 우산으로 마무리하세요.`,
+        note: `${occasionAdjusted.note} 비가 예상되므로 발등을 덮는 방수 신발과 접이식 우산으로 마무리하세요.`,
         alternate: "발수 가공 셔츠 재킷",
       };
     }
-    return toneAdjusted;
-  }, [style, tone, weather, comfort]);
+    return occasionAdjusted;
+  }, [style, tone, weather, comfort, occasion]);
 
   const comfortOffset = comfort === "warmer" ? -3 : comfort === "cooler" ? 3 : 0;
   const weatherBand = periodFromTemp((weather?.current.apparent_temperature ?? 20) + comfortOffset);
