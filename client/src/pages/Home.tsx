@@ -2,7 +2,7 @@
  * Weather Fit — 기상 아틀리에: 날씨의 수치와 옷차림 결정을 한 화면에서 연결한다.
  * Design note: Deep Canopy, editorial spread, tactile imagery, clear action hierarchy.
  */
-import { type ChangeEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   Bookmark,
@@ -296,8 +296,10 @@ export default function Home() {
   const [cityOpen, setCityOpen] = useState(false);
   const [notice, setNotice] = useState("");
   const [errorText, setErrorText] = useState("");
+  const weatherRequestId = useRef(0);
 
   const loadWeather = useCallback(async (target: City, silent = false) => {
+    const requestId = ++weatherRequestId.current;
     if (!silent) setLoadState("loading");
     setErrorText("");
     try {
@@ -313,10 +315,12 @@ export default function Home() {
       const response = await fetch(`https://api.open-meteo.com/v1/forecast?${params.toString()}`);
       if (!response.ok) throw new Error("weather response failed");
       const data = (await response.json()) as WeatherData;
+      if (requestId !== weatherRequestId.current) return;
       setWeather(data);
       writeStorage(STORAGE_KEYS.snapshot, data);
       setLoadState("ready");
     } catch {
+      if (requestId !== weatherRequestId.current) return;
       setLoadState(weather ? "ready" : "error");
       setErrorText(weather ? "최신 날씨를 가져오지 못해 마지막으로 확인한 정보를 표시하고 있어요." : "날씨 정보를 불러오지 못했습니다. 연결을 확인한 뒤 다시 시도해 주세요.");
     }
