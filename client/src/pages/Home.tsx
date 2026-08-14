@@ -22,6 +22,7 @@ import {
   ShieldCheck,
   Shirt,
   SlidersHorizontal,
+  Star,
   SunMedium,
   Thermometer,
   Wind,
@@ -114,6 +115,7 @@ const STORAGE_KEYS = {
   comfort: "weatherfit-studio-comfort",
   occasion: "weatherfit-studio-occasion",
   checklist: "weatherfit-studio-checklist",
+  favoriteCities: "weatherfit-studio-favorite-cities",
 };
 
 function readStorage<T>(key: string, fallback: T): T {
@@ -211,6 +213,7 @@ export default function Home() {
   const [comfort, setComfort] = useState<ComfortId>(() => readStorage<ComfortId>(STORAGE_KEYS.comfort, "neutral"));
   const [occasion, setOccasion] = useState<OccasionId>(() => readStorage<OccasionId>(STORAGE_KEYS.occasion, "any"));
   const [checkedSteps, setCheckedSteps] = useState<string[]>(() => readStorage<string[]>(`${STORAGE_KEYS.checklist}-${todayKey()}`, []));
+  const [favoriteCities, setFavoriteCities] = useState<City[]>(() => readStorage<City[]>(STORAGE_KEYS.favoriteCities, []));
   const [cityOpen, setCityOpen] = useState(false);
   const [notice, setNotice] = useState("");
   const [errorText, setErrorText] = useState("");
@@ -255,6 +258,7 @@ export default function Home() {
   useEffect(() => writeStorage(STORAGE_KEYS.comfort, comfort), [comfort]);
   useEffect(() => writeStorage(STORAGE_KEYS.occasion, occasion), [occasion]);
   useEffect(() => writeStorage(`${STORAGE_KEYS.checklist}-${todayKey()}`, checkedSteps), [checkedSteps]);
+  useEffect(() => writeStorage(STORAGE_KEYS.favoriteCities, favoriteCities), [favoriteCities]);
 
   useEffect(() => {
     if (!cityOpen) return;
@@ -323,9 +327,19 @@ export default function Home() {
     return prep.length ? prep : [{ id: "base", label: "기본 레이어", detail: "이번 주는 오늘의 베이스 룩을 중심으로 준비해도 좋아요." }];
   }, [weather]);
 
+  const isCityFavorite = favoriteCities.some((item) => item.id === city.id);
+
   const selectCity = (next: City) => {
     setCity(next);
     setCityOpen(false);
+  };
+
+  const toggleFavoriteCity = () => {
+    setFavoriteCities((items) => {
+      const exists = items.some((item) => item.id === city.id);
+      return exists ? items.filter((item) => item.id !== city.id) : [...items, city];
+    });
+    setNotice(isCityFavorite ? `${city.name}을(를) 즐겨찾기에서 뺐어요.` : `${city.name}을(를) 빠른 전환 지역으로 저장했어요.`);
   };
 
   const useLocation = () => {
@@ -412,7 +426,7 @@ export default function Home() {
         </div>
         {cityOpen && (
           <div className="city-menu" role="dialog" aria-label="지역 선택">
-            <div className="city-menu-head"><span>어디의 날씨를 볼까요?</span><button type="button" onClick={useLocation}>현재 위치 사용</button></div>
+            <div className="city-menu-head"><span>어디의 날씨를 볼까요?</span><div><button type="button" onClick={useLocation}>현재 위치 사용</button><button type="button" className="city-favorite-toggle" onClick={toggleFavoriteCity} aria-pressed={isCityFavorite}><Star size={13} fill={isCityFavorite ? "currentColor" : "none"} /> {isCityFavorite ? "저장됨" : "이 지역 저장"}</button></div></div>
             {CITIES.map((item) => (
               <button key={item.id} type="button" className={city.id === item.id ? "city-option is-active" : "city-option"} onClick={() => selectCity(item)}>
                 <span><strong>{item.name}</strong><small>{item.subtitle}</small></span>{city.id === item.id && <Check size={16} />}
@@ -426,6 +440,8 @@ export default function Home() {
 
       <main id="today" className="content-shell">
         {errorText && <div className="connection-note" role="status"><CloudRain size={16} /> {errorText}<button type="button" onClick={() => void loadWeather(city)}>다시 시도</button></div>}
+
+        {favoriteCities.length > 0 && <nav className="favorite-rail" aria-label="즐겨찾는 지역 빠른 전환"><span>자주 보는 지역</span><div>{favoriteCities.map((item) => <button key={item.id} type="button" className={item.id === city.id ? "favorite-city is-active" : "favorite-city"} onClick={() => selectCity(item)} aria-current={item.id === city.id ? "page" : undefined}><MapPin size={13} /> {item.name}</button>)}</div><button type="button" className="favorite-manage" onClick={() => setCityOpen(true)}>관리</button></nav>}
 
         <section className="weather-hero" aria-label="오늘의 날씨">
           <div className="hero-image" aria-hidden="true" />
