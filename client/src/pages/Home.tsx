@@ -571,6 +571,18 @@ export default function Home() {
     setNotice("선택한 코디 기록을 정리했어요.");
   };
 
+  const clearLocalRecords = () => {
+    if (!window.confirm("이 기기의 저장·착용·결품·준비·즐겨찾기 기록을 모두 지울까요? 현재 지역과 스타일 선호는 유지됩니다.")) return;
+    setSaved([]);
+    setWorn([]);
+    setMissing([]);
+    setCheckedSteps([]);
+    setPreparedTomorrow([]);
+    setFavoriteCities([]);
+    setLookRecords({});
+    setNotice("이 기기의 개인 기록을 정리했어요.");
+  };
+
   const toggleTomorrowPrepared = () => {
     if (!tomorrowPlanId) return;
     setPreparedTomorrow((items) => isTomorrowPrepared ? items.filter((item) => item !== tomorrowPlanId) : [...items, tomorrowPlanId]);
@@ -805,7 +817,7 @@ export default function Home() {
           <div><span className="eyebrow">Your small archive</span><h2>오늘의 선택을<br />내일의 기준으로.</h2></div>
           <div className="archive-stat"><Bookmark size={20} /><strong>{saved.length}</strong><span>저장한 룩</span></div>
           <div className="archive-stat"><Footprints size={20} /><strong>{worn.length}</strong><span>착용 기록</span></div>
-          <div className="archive-detail"><Droplets size={18} /><p>날씨와 함께 남긴 기록은 다음 추천에서 가장 실용적인 출발점이 됩니다.</p><button type="button" className="archive-export" onClick={exportArchive}><Download size={14} /> 내 기록 내려받기</button><label className="archive-import"><Upload size={14} /> 내 기록 불러오기<input type="file" accept="application/json,.json" onChange={(event) => void importArchive(event)} /></label></div>
+          <div className="archive-detail"><Droplets size={18} /><p>날씨와 함께 남긴 기록은 다음 추천에서 가장 실용적인 출발점이 됩니다.</p><button type="button" className="archive-export" onClick={exportArchive}><Download size={14} /> 내 기록 내려받기</button><label className="archive-import"><Upload size={14} /> 내 기록 불러오기<input type="file" accept="application/json,.json" onChange={(event) => void importArchive(event)} /></label><button type="button" className="archive-reset" onClick={clearLocalRecords}>이 기기 기록 초기화</button></div>
         </section>
 
         {archiveItems.length > 0 && <section className="history-ledger" aria-label="최근 코디 기록"><div className="history-ledger-title"><span className="eyebrow">Recent dressing log</span><h2>최근 남긴 선택</h2></div><ul>{archiveItems.slice(0, 3).map((item) => <li key={item.id}><div><strong>{item.name}</strong><span>{item.cityName}{item.temperature !== undefined ? ` · 체감 ${item.temperature}°` : ""}{item.condition ? ` · ${item.condition}` : ""}</span></div><div className="history-meta"><span>{item.isWorn ? "착용" : "저장"}{item.isWorn && item.isSaved ? " · 저장" : ""}</span><small>{formatArchiveDate(item.recordedAt)}</small><button type="button" onClick={() => removeArchiveItem(item.id)} aria-label={`${item.name} 기록 지우기`}>기록 지우기</button></div></li>)}</ul></section>}
