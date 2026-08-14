@@ -1,4 +1,4 @@
-const CACHE_NAME = "weather-fit-pages-v1";
+const CACHE_NAME = "weather-fit-pages-v2";
 const APP_SHELL = [
   "./",
   "./manifest.webmanifest",
