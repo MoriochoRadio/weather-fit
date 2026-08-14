@@ -12,6 +12,7 @@ import {
   CloudRain,
   CloudSun,
   Droplets,
+  Download,
   ExternalLink,
   Footprints,
   Layers3,
@@ -363,6 +364,25 @@ export default function Home() {
     }
   };
 
+  const exportArchive = () => {
+    const archive = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      preferences: { city, style, tone, comfort, occasion },
+      savedLooks: saved,
+      wornLooks: worn,
+      missingItems: missing,
+    };
+    const blob = new Blob([JSON.stringify(archive, null, 2)], { type: "application/json" });
+    const href = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = href;
+    link.download = `weather-fit-archive-${todayKey()}.json`;
+    link.click();
+    URL.revokeObjectURL(href);
+    setNotice("내 코디 기록 파일을 내려받았어요.");
+  };
+
   return (
     <div className="weather-fit-app">
       <header className="app-header">
@@ -494,7 +514,7 @@ export default function Home() {
           <div><span className="eyebrow">Your small archive</span><h2>오늘의 선택을<br />내일의 기준으로.</h2></div>
           <div className="archive-stat"><Bookmark size={20} /><strong>{saved.length}</strong><span>저장한 룩</span></div>
           <div className="archive-stat"><Footprints size={20} /><strong>{worn.length}</strong><span>착용 기록</span></div>
-          <div className="archive-detail"><Droplets size={18} /><p>날씨와 함께 남긴 기록은 다음 추천에서 가장 실용적인 출발점이 됩니다.</p></div>
+          <div className="archive-detail"><Droplets size={18} /><p>날씨와 함께 남긴 기록은 다음 추천에서 가장 실용적인 출발점이 됩니다.</p><button type="button" className="archive-export" onClick={exportArchive}><Download size={14} /> 내 기록 내려받기</button></div>
         </section>
       </main>
 
