@@ -2,7 +2,7 @@
  * Weather Fit — 기상 아틀리에: 날씨의 수치와 옷차림 결정을 한 화면에서 연결한다.
  * Design note: Deep Canopy, editorial spread, tactile imagery, clear action hierarchy.
  */
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { type ChangeEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   Bookmark,
@@ -26,6 +26,7 @@ import {
   Star,
   SunMedium,
   Thermometer,
+  Upload,
   Wind,
 } from "lucide-react";
 
@@ -139,6 +140,36 @@ function writeStorage(key: string, value: unknown) {
   } catch {
     // 브라우저 저장소 사용 불가 상태에서도 핵심 날씨 조회는 계속 가능하다.
   }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function stringArray(value: unknown) {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+}
+
+function cityFromUnknown(value: unknown): City | null {
+  if (!isRecord(value) || typeof value.id !== "string" || typeof value.name !== "string" || typeof value.subtitle !== "string" || typeof value.latitude !== "number" || typeof value.longitude !== "number") return null;
+  return { id: value.id, name: value.name, subtitle: value.subtitle, latitude: value.latitude, longitude: value.longitude };
+}
+
+function lookRecordsFromUnknown(value: unknown): Record<string, LookRecord> {
+  const candidates = Array.isArray(value) ? value : isRecord(value) ? Object.values(value) : [];
+  return candidates.reduce<Record<string, LookRecord>>((records, candidate) => {
+    if (!isRecord(candidate) || typeof candidate.id !== "string") return records;
+    records[candidate.id] = {
+      id: candidate.id,
+      name: typeof candidate.name === "string" ? candidate.name : outfitNameForId(candidate.id),
+      cityName: typeof candidate.cityName === "string" ? candidate.cityName : "이전 기록",
+      temperature: typeof candidate.temperature === "number" ? candidate.temperature : undefined,
+      condition: typeof candidate.condition === "string" ? candidate.condition : undefined,
+      savedAt: typeof candidate.savedAt === "string" ? candidate.savedAt : undefined,
+      wornAt: typeof candidate.wornAt === "string" ? candidate.wornAt : undefined,
+    };
+    return records;
+  }, {});
 }
 
 function weatherLabel(code: number) {
@@ -477,6 +508,37 @@ export default function Home() {
     setNotice("내 코디 기록 파일을 내려받았어요.");
   };
 
+  const importArchive = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    try {
+      const parsed: unknown = JSON.parse(await file.text());
+      if (!isRecord(parsed) || parsed.version !== 1) throw new Error("unsupported archive");
+      const preferences = isRecord(parsed.preferences) ? parsed.preferences : {};
+      const importedCity = cityFromUnknown(preferences.city);
+      const importedSaved = stringArray(parsed.savedLooks);
+      const importedWorn = stringArray(parsed.wornLooks);
+      const importedMissing = stringArray(parsed.missingItems);
+      const importedRecords = lookRecordsFromUnknown(parsed.lookRecords);
+      if (!importedCity && !importedSaved.length && !importedWorn.length && !importedMissing.length) throw new Error("empty archive");
+
+      if (importedCity) setCity(importedCity);
+      if (preferences.style === "oldmoney" || preferences.style === "casual" || preferences.style === "formal" || preferences.style === "minimal") setStyle(preferences.style);
+      if (preferences.tone === "all" || preferences.tone === "cool" || preferences.tone === "warm") setTone(preferences.tone);
+      if (preferences.comfort === "neutral" || preferences.comfort === "warmer" || preferences.comfort === "cooler") setComfort(preferences.comfort);
+      if (preferences.occasion === "any" || preferences.occasion === "work" || preferences.occasion === "weekend" || preferences.occasion === "evening") setOccasion(preferences.occasion);
+      setSaved(Array.from(new Set(importedSaved)));
+      setWorn(Array.from(new Set(importedWorn)));
+      setMissing(Array.from(new Set(importedMissing)));
+      setLookRecords(importedRecords);
+      setNotice(`기록 ${new Set([...importedSaved, ...importedWorn]).size}건과 설정을 불러왔어요.`);
+    } catch {
+      setNotice("Weather Fit에서 내보낸 올바른 JSON 기록 파일을 선택해 주세요.");
+    } finally {
+      event.target.value = "";
+    }
+  };
+
   return (
     <div className="weather-fit-app">
       <header className="app-header">
@@ -611,7 +673,7 @@ export default function Home() {
           <div><span className="eyebrow">Your small archive</span><h2>오늘의 선택을<br />내일의 기준으로.</h2></div>
           <div className="archive-stat"><Bookmark size={20} /><strong>{saved.length}</strong><span>저장한 룩</span></div>
           <div className="archive-stat"><Footprints size={20} /><strong>{worn.length}</strong><span>착용 기록</span></div>
-          <div className="archive-detail"><Droplets size={18} /><p>날씨와 함께 남긴 기록은 다음 추천에서 가장 실용적인 출발점이 됩니다.</p><button type="button" className="archive-export" onClick={exportArchive}><Download size={14} /> 내 기록 내려받기</button></div>
+          <div className="archive-detail"><Droplets size={18} /><p>날씨와 함께 남긴 기록은 다음 추천에서 가장 실용적인 출발점이 됩니다.</p><button type="button" className="archive-export" onClick={exportArchive}><Download size={14} /> 내 기록 내려받기</button><label className="archive-import"><Upload size={14} /> 내 기록 불러오기<input type="file" accept="application/json,.json" onChange={(event) => void importArchive(event)} /></label></div>
         </section>
 
         {archiveItems.length > 0 && <section className="history-ledger" aria-label="최근 코디 기록"><div className="history-ledger-title"><span className="eyebrow">Recent dressing log</span><h2>최근 남긴 선택</h2></div><ul>{archiveItems.slice(0, 3).map((item) => <li key={item.id}><div><strong>{item.name}</strong><span>{item.cityName}{item.temperature !== undefined ? ` · 체감 ${item.temperature}°` : ""}{item.condition ? ` · ${item.condition}` : ""}</span></div><div className="history-meta"><span>{item.isWorn ? "착용" : "저장"}{item.isWorn && item.isSaved ? " · 저장" : ""}</span><small>{formatArchiveDate(item.recordedAt)}</small></div></li>)}</ul></section>}
