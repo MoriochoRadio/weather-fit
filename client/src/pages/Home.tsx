@@ -38,6 +38,7 @@ type LoadState = "loading" | "ready" | "error";
 type RiskLevel = "critical" | "attention";
 type WeatherRisk = { id: string; label: string; detail: string; action: string; level: RiskLevel };
 type LookRecord = { id: string; name: string; cityName: string; temperature?: number; condition?: string; savedAt?: string; wornAt?: string };
+type HourlyPoint = { hour: string; temperature: number; precipitation: number };
 
 type WeatherData = {
   current: {
@@ -235,6 +236,17 @@ function formatArchiveDate(value?: string) {
   return new Intl.DateTimeFormat("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" }).format(date);
 }
 
+function buildHourlyTimeline(weather: WeatherData): HourlyPoint[] {
+  const targetHours = [9, 12, 15, 18, 21];
+  const date = weather.daily.time[0];
+  return targetHours.flatMap((hour) => {
+    const time = `${date}T${String(hour).padStart(2, "0")}:00`;
+    const index = weather.hourly.time.findIndex((item) => item === time);
+    if (index < 0) return [];
+    return [{ hour: `${hour}시`, temperature: Math.round(weather.hourly.temperature_2m[index]), precipitation: weather.hourly.precipitation_probability[index] ?? 0 }];
+  });
+}
+
 export default function Home() {
   const [city, setCity] = useState<City>(() => readStorage(STORAGE_KEYS.city, CITIES[0]));
   const [weather, setWeather] = useState<WeatherData | null>(() => readStorage<WeatherData | null>(STORAGE_KEYS.snapshot, null));
@@ -341,6 +353,11 @@ export default function Home() {
   const missingPieces = [outfit.top, outfit.bottom, outfit.shoes, outfit.accessory].filter((item) => missing.includes(item));
   const rainWindow = weather ? nextRainWindow(weather) : null;
   const weatherRisks = weather ? getWeatherRisks(weather) : [];
+  const hourlyTimeline = weather ? buildHourlyTimeline(weather) : [];
+  const timelineMin = hourlyTimeline.length ? Math.min(...hourlyTimeline.map((item) => item.temperature)) : 0;
+  const timelineMax = hourlyTimeline.length ? Math.max(...hourlyTimeline.map((item) => item.temperature)) : 0;
+  const timelineRange = Math.max(1, timelineMax - timelineMin);
+  const timelinePoints = hourlyTimeline.map((item, index) => `${hourlyTimeline.length === 1 ? 50 : 6 + (88 * index) / (hourlyTimeline.length - 1)},${39 - ((item.temperature - timelineMin) / timelineRange) * 28}`).join(" ");
   const fitSignals = weather ? [
     { label: "체감 기준", value: `${Math.round(weather.current.apparent_temperature)}°`, detail: comfort === "warmer" ? "추위를 타는 기준으로 한 단계 보온" : comfort === "cooler" ? "더위를 타는 기준으로 한 단계 가볍게" : "현재 체감을 그대로 반영" },
     { label: "강수 대응", value: `${weather.daily.precipitation_probability_max[0] ?? 0}%`, detail: (weather.daily.precipitation_probability_max[0] ?? 0) >= 50 ? `${rainWindow ? `${rainWindow} 이후` : "오늘"} 비 대비로 자동 보정` : "가벼운 외출 기준" },
@@ -524,10 +541,9 @@ export default function Home() {
           </dl>}
         </section>
 
-        {weather && <section className="temperature-strip" aria-label="오늘 시간대별 온도">
+        {weather && <section className="temperature-strip" aria-label={`오늘 시간대별 온도. 최저 ${Math.round(weather.daily.temperature_2m_min[0])}도, 최고 ${Math.round(weather.daily.temperature_2m_max[0])}도`}>
           <div className="strip-label"><Thermometer size={17} /><span>오늘의 온도 흐름</span><strong>{Math.round(weather.daily.temperature_2m_min[0])}° <i /> {Math.round(weather.daily.temperature_2m_max[0])}°</strong></div>
-          <div className="temperature-line" aria-hidden="true"><span className="temp-dot start" /><span className="temp-path" /><span className="temp-dot peak" /><span className="temp-path end" /></div>
-          <div className="time-legend"><span>아침</span><span>낮</span><span>저녁</span></div>
+          {hourlyTimeline.length > 1 ? <><div className="temperature-line" aria-hidden="true"><svg viewBox="0 0 100 44" preserveAspectRatio="none"><polyline points={timelinePoints} /></svg>{hourlyTimeline.map((item, index) => <span key={item.hour} className="temp-dot" style={{ left: `${hourlyTimeline.length === 1 ? 50 : 6 + (88 * index) / (hourlyTimeline.length - 1)}%`, top: `${39 - ((item.temperature - timelineMin) / timelineRange) * 28}px` }} />)}</div><div className="time-legend">{hourlyTimeline.map((item) => <span key={item.hour}><b>{item.hour}</b><strong>{item.temperature}°</strong><small>{item.precipitation >= 40 ? `비 ${item.precipitation}%` : "강수 낮음"}</small></span>)}</div></> : <div className="timeline-empty">시간대별 흐름을 준비하고 있어요.</div>}
         </section>}
 
         <section className="decision-intro" aria-label="오늘의 준비물">
