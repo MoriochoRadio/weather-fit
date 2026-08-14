@@ -221,6 +221,14 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          "react-runtime": ["react", "react-dom", "wouter"],
+          "ui-icons": ["lucide-react"],
+        },
+      },
+    },
   },
   server: {
     port: 3000,
