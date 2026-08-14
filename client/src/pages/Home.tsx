@@ -497,9 +497,12 @@ export default function Home() {
     }
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        const current: City = { id: "current", name: "현재 위치", subtitle: "브라우저 위치", latitude: position.coords.latitude, longitude: position.coords.longitude };
+        const latitude = position.coords.latitude;
+        const longitude = position.coords.longitude;
+        const current: City = { id: `current-${latitude.toFixed(2)}-${longitude.toFixed(2)}`, name: "현재 위치", subtitle: "브라우저 위치", latitude, longitude };
         setCity(current);
         setCityOpen(false);
+        requestAnimationFrame(() => cityTriggerRef.current?.focus());
         setNotice("현재 위치 기준으로 날씨를 새로 확인했어요.");
       },
       () => setNotice("현재 위치 권한을 받지 못했어요. 도시를 직접 선택해 주세요."),
