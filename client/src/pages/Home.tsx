@@ -41,6 +41,7 @@ type RiskLevel = "critical" | "attention";
 type WeatherRisk = { id: string; label: string; detail: string; action: string; level: RiskLevel };
 type LookRecord = { id: string; name: string; cityName: string; temperature?: number; condition?: string; savedAt?: string; wornAt?: string };
 type HourlyPoint = { hour: string; temperature: number; precipitation: number };
+type InstallPromptEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: "accepted" | "dismissed" }> };
 
 type WeatherData = {
   current: {
@@ -331,6 +332,7 @@ export default function Home() {
   const [cityOpen, setCityOpen] = useState(false);
   const [notice, setNotice] = useState("");
   const [errorText, setErrorText] = useState("");
+  const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
   const weatherRequestId = useRef(0);
   const cityTriggerRef = useRef<HTMLButtonElement>(null);
 
@@ -396,6 +398,23 @@ export default function Home() {
     window.addEventListener("keydown", closeOnEscape);
     return () => window.removeEventListener("keydown", closeOnEscape);
   }, [cityOpen]);
+
+  useEffect(() => {
+    const captureInstallPrompt = (event: Event) => {
+      event.preventDefault();
+      setInstallPrompt(event as InstallPromptEvent);
+    };
+    const clearInstallPrompt = () => {
+      setInstallPrompt(null);
+      setNotice("Weather Fit을 앱으로 설치했어요.");
+    };
+    window.addEventListener("beforeinstallprompt", captureInstallPrompt);
+    window.addEventListener("appinstalled", clearInstallPrompt);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", captureInstallPrompt);
+      window.removeEventListener("appinstalled", clearInstallPrompt);
+    };
+  }, []);
 
   const outfit = useMemo(() => {
     const comfortOffset = comfort === "warmer" ? -3 : comfort === "cooler" ? 3 : 0;
@@ -558,6 +577,17 @@ export default function Home() {
     setNotice(isTomorrowPrepared ? "내일 준비 표시를 지웠어요." : "내일 코디 준비를 기록했어요.");
   };
 
+  const installApp = async () => {
+    if (!installPrompt) return;
+    try {
+      await installPrompt.prompt();
+      const choice = await installPrompt.userChoice;
+      if (choice.outcome === "dismissed") setNotice("설치는 원할 때 다시 선택할 수 있어요.");
+    } finally {
+      setInstallPrompt(null);
+    }
+  };
+
   const shareOutfit = async () => {
     const weatherSummary = weather ? `체감 ${Math.round(weather.current.apparent_temperature)}° · 강수 ${weather.daily.precipitation_probability_max[0] ?? 0}%` : "오늘의 날씨";
     const departureSummary = departureAdvice ? `출발: ${departureAdvice.title} — ${departureAdvice.detail}` : "출발 시점: 현재 예보를 확인해 주세요.";
@@ -668,6 +698,7 @@ export default function Home() {
       </header>
 
       {notice && <div className="notice" role="status" aria-live="polite"><span>{notice}</span><button type="button" onClick={() => setNotice("")} aria-label="안내 닫기">닫기</button></div>}
+      {installPrompt && <section className="pwa-install-cue" aria-label="Weather Fit 앱 설치"><Download size={18} strokeWidth={1.7} /><div><strong>Weather Fit을 앱처럼 사용하세요.</strong><span>홈 화면에 설치하면 날씨와 코디를 더 빠르게 확인할 수 있어요.</span></div><button type="button" onClick={() => void installApp()}>앱으로 설치</button></section>}
 
       <main id="today" className="content-shell">
         {errorText && <div className="connection-note" role="status"><CloudRain size={16} /> {errorText}<button type="button" onClick={() => void loadWeather(city)}>다시 시도</button></div>}
