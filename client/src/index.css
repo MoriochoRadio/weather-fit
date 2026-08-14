@@ -106,3 +106,22 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--coral); outline
   .outfit-visual .silhouette { padding: 22px 18px 46px; }
   .city-option-list { max-height: 260px; }
 }
+
+/* ── 조작 대상 최소 크기 (WCAG 2.2 SC 2.5.8) ──────────────────────────────
+   375px에서 룩 저장 버튼(가로 23px)·옷장 결품 토글(23px)·공유(18px)·
+   아카이브 내보내기/초기화(17px)·기록 지우기(14px)가 최소 24px에 못 미쳐
+   손가락으로 정확히 누르기 어려웠다. 글자 크기와 배치는 그대로 두고
+   최소 크기와 세로 여백만 확보한다. */
+.round-action { min-width: 24px; }
+.outfit-pieces button,
+.text-action,
+.archive-export,
+.archive-reset,
+.archive-import button,
+.history-meta button,
+.favorite-manage,
+.connection-note button {
+  min-height: 24px;
+  padding-block: 3px;
+}
+.outfit-pieces button { min-width: 24px; }
