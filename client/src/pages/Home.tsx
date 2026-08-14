@@ -4,6 +4,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  AlertTriangle,
   Bookmark,
   CalendarDays,
   Check,
@@ -34,6 +35,8 @@ type ToneId = "all" | "cool" | "warm";
 type ComfortId = "neutral" | "warmer" | "cooler";
 type OccasionId = "any" | "work" | "weekend" | "evening";
 type LoadState = "loading" | "ready" | "error";
+type RiskLevel = "critical" | "attention";
+type WeatherRisk = { id: string; label: string; detail: string; action: string; level: RiskLevel };
 
 type WeatherData = {
   current: {
@@ -201,6 +204,23 @@ function nextRainWindow(weather: WeatherData) {
   return weather.hourly.time[nextIndex]?.slice(11, 16) ?? null;
 }
 
+function getWeatherRisks(weather: WeatherData): WeatherRisk[] {
+  const risks: WeatherRisk[] = [];
+  const apparent = weather.current.apparent_temperature;
+  const rain = weather.daily.precipitation_probability_max[0] ?? 0;
+  const uv = weather.daily.uv_index_max[0] ?? 0;
+  const isThunder = [95, 96, 99].includes(weather.current.weather_code);
+
+  if (isThunder) risks.push({ id: "thunder", label: "뇌우 가능성", detail: "천둥·번개 코드가 감지됐어요. 야외에 오래 머무르지 마세요.", action: "출발 전 실내 대기 경로와 우산을 함께 준비하세요.", level: "critical" });
+  if (rain >= 70) risks.push({ id: "heavy-rain", label: "강한 비 가능성", detail: `오늘 최고 강수 확률이 ${rain}%예요.`, action: "방수 신발·접이식 우산과 여벌 양말을 챙기세요.", level: "critical" });
+  if (weather.current.wind_speed_10m >= 30) risks.push({ id: "wind", label: "강풍 주의", detail: `현재 바람이 ${Math.round(weather.current.wind_speed_10m)}km/h예요.`, action: "우산·모자처럼 바람 영향을 받는 소지품을 단단히 고정하세요.", level: "attention" });
+  if (apparent >= 33) risks.push({ id: "heat", label: "높은 체감온도", detail: `현재 체감이 ${Math.round(apparent)}°예요.`, action: "통기성 있는 이너·물·차양 아이템을 먼저 준비하세요.", level: "attention" });
+  if (apparent <= 0) risks.push({ id: "cold", label: "한랭 주의", detail: `현재 체감이 ${Math.round(apparent)}°예요.`, action: "목과 손목을 덮는 레이어, 보온용 소품을 더하세요.", level: "attention" });
+  if (uv >= 8) risks.push({ id: "uv", label: "높은 자외선", detail: `오늘 최대 UV 지수가 ${Math.round(uv)}예요.`, action: "모자·선글라스·자외선 차단제를 외출 준비에 넣으세요.", level: "attention" });
+
+  return risks.slice(0, 2);
+}
+
 export default function Home() {
   const [city, setCity] = useState<City>(() => readStorage(STORAGE_KEYS.city, CITIES[0]));
   const [weather, setWeather] = useState<WeatherData | null>(() => readStorage<WeatherData | null>(STORAGE_KEYS.snapshot, null));
@@ -304,6 +324,7 @@ export default function Home() {
   const WeatherIcon = weather ? weatherIcon(weather.current.weather_code) : CloudSun;
   const missingPieces = [outfit.top, outfit.bottom, outfit.shoes, outfit.accessory].filter((item) => missing.includes(item));
   const rainWindow = weather ? nextRainWindow(weather) : null;
+  const weatherRisks = weather ? getWeatherRisks(weather) : [];
   const fitSignals = weather ? [
     { label: "체감 기준", value: `${Math.round(weather.current.apparent_temperature)}°`, detail: comfort === "warmer" ? "추위를 타는 기준으로 한 단계 보온" : comfort === "cooler" ? "더위를 타는 기준으로 한 단계 가볍게" : "현재 체감을 그대로 반영" },
     { label: "강수 대응", value: `${weather.daily.precipitation_probability_max[0] ?? 0}%`, detail: (weather.daily.precipitation_probability_max[0] ?? 0) >= 50 ? `${rainWindow ? `${rainWindow} 이후` : "오늘"} 비 대비로 자동 보정` : "가벼운 외출 기준" },
@@ -442,6 +463,8 @@ export default function Home() {
         {errorText && <div className="connection-note" role="status"><CloudRain size={16} /> {errorText}<button type="button" onClick={() => void loadWeather(city)}>다시 시도</button></div>}
 
         {favoriteCities.length > 0 && <nav className="favorite-rail" aria-label="즐겨찾는 지역 빠른 전환"><span>자주 보는 지역</span><div>{favoriteCities.map((item) => <button key={item.id} type="button" className={item.id === city.id ? "favorite-city is-active" : "favorite-city"} onClick={() => selectCity(item)} aria-current={item.id === city.id ? "page" : undefined}><MapPin size={13} /> {item.name}</button>)}</div><button type="button" className="favorite-manage" onClick={() => setCityOpen(true)}>관리</button></nav>}
+
+        {weatherRisks.length > 0 && <section className="weather-alerts" aria-label="오늘의 외출 주의" role="status"><div className="weather-alerts-title"><AlertTriangle size={19} strokeWidth={1.8} /><div><span>Weather attention</span><strong>오늘의 외출 주의</strong></div></div><ul>{weatherRisks.map((risk) => <li key={risk.id} className={`weather-alert is-${risk.level}`}><strong>{risk.label}</strong><p>{risk.detail}</p><small>{risk.action}</small></li>)}</ul></section>}
 
         <section className="weather-hero" aria-label="오늘의 날씨">
           <div className="hero-image" aria-hidden="true" />
