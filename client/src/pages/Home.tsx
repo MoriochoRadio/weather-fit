@@ -33,6 +33,12 @@ import {
 
 import type * as React from "react";
 
+import OutfitSilhouette from "@/components/OutfitSilhouette";
+import { OUTFITS, STYLE_LABELS as OUTFIT_STYLE_LABELS } from "@/data/outfits";
+import { PROVINCES } from "@/data/regions";
+import { BAND_LABELS, alternateOutfit, recommendOutfits, tempBand } from "@/engine/recommend";
+import type { Outfit, TempBand } from "@/types";
+
 // public/assets는 배포 base(GitHub Pages의 /weather-fit/) 아래에 그대로 놓인다.
 // 경로를 하드코딩하면 로컬 개발과 저장소 이름 변경에서 깨지므로 BASE_URL을 기준으로 만든다.
 const ASSET_BASE = `${import.meta.env.BASE_URL}assets/`;
@@ -73,49 +79,27 @@ type WeatherData = {
   };
 };
 
-const CITIES: City[] = [
-  { id: "seoul", name: "서울", subtitle: "서울특별시", latitude: 37.5665, longitude: 126.978 },
-  { id: "busan", name: "부산", subtitle: "부산광역시", latitude: 35.1796, longitude: 129.0756 },
-  { id: "daejeon", name: "대전", subtitle: "대전광역시", latitude: 36.3504, longitude: 127.3845 },
-  { id: "gangneung", name: "강릉", subtitle: "강원특별자치도", latitude: 37.7519, longitude: 128.8761 },
-  { id: "jeju", name: "제주", subtitle: "제주특별자치도", latitude: 33.4996, longitude: 126.5312 },
-];
+// 전국 10개 권역 161개 지역. 권역별로 묶인 원본을 화면이 쓰는 평면 목록으로 편다.
+const CITIES: City[] = PROVINCES.flatMap((province) =>
+  province.cities.map((city) => ({
+    id: `${province.name}-${city.name}`,
+    name: city.name,
+    subtitle: province.name,
+    latitude: city.latitude,
+    longitude: city.longitude,
+  })),
+);
 
-const STYLE_LABELS: Record<StyleId, string> = {
-  oldmoney: "올드머니",
-  casual: "캐주얼",
-  formal: "포멀",
-  minimal: "미니멀",
-};
+const DEFAULT_CITY: City = CITIES.find((c) => c.name === "서울") ?? CITIES[0];
 
-const OUTFIT_LIBRARY: Record<StyleId, Record<"hot" | "mild" | "cool", { name: string; tone: "cool" | "warm"; top: string; bottom: string; shoes: string; accessory: string; note: string; alternate: string }>> = {
-  oldmoney: {
-    hot: { name: "네이비 피케의 여름", tone: "cool", top: "네이비 피케 폴로", bottom: "라이트그레이 코튼 쇼츠", shoes: "화이트 레더 스니커", accessory: "네이비 캡", note: "깊은 네이비 한 톤이면 더운 날에도 옷차림의 중심이 남습니다.", alternate: "오프화이트 리넨 셔츠" },
-    mild: { name: "카멜 레이어의 오후", tone: "warm", top: "크림 코튼 셔츠", bottom: "베이지 치노 팬츠", shoes: "브라운 스웨이드 로퍼", accessory: "다크브라운 벨트", note: "밝은 셔츠와 차분한 카멜이 일교차를 무리 없이 받아줍니다.", alternate: "올리브 코튼 재킷" },
-    cool: { name: "울 트윌의 선", tone: "warm", top: "차콜 메리노 니트", bottom: "그레이 울 트라우저", shoes: "블랙 더비 슈즈", accessory: "울 머플러", note: "기온이 떨어질수록 질감이 선명한 니트와 울 소재가 단정함을 만듭니다.", alternate: "네이비 맥 코트" },
-  },
-  casual: {
-    hot: { name: "페일블루 오픈칼라", tone: "cool", top: "페일블루 오픈칼라 셔츠", bottom: "오프화이트 린넨 쇼츠", shoes: "블랙 레더 샌들", accessory: "실버 프레임 선글라스", note: "열이 오르는 낮에는 열린 칼라와 밝은 하의로 공기를 남겨두세요.", alternate: "화이트 티셔츠" },
-    mild: { name: "바람을 타는 데님", tone: "cool", top: "화이트 티셔츠와 데님 셔츠", bottom: "인디고 스트레이트 데님", shoes: "캔버스 스니커", accessory: "나일론 캡", note: "가벼운 데님 셔츠는 낮에는 한 겹, 저녁에는 얇은 아우터가 됩니다.", alternate: "올리브 필드 재킷" },
-    cool: { name: "소프트 쉘의 하루", tone: "cool", top: "그레이 스웨트와 나일론 재킷", bottom: "차콜 이지 팬츠", shoes: "그레이 러닝 스니커", accessory: "블랙 비니", note: "바람이 체감을 낮출 땐 부피보다 막아주는 한 겹이 우선입니다.", alternate: "라이트 다운 베스트" },
-  },
-  formal: {
-    hot: { name: "섬세한 여름 수트", tone: "cool", top: "스카이블루 반팔 셔츠", bottom: "네이비 쿨울 슬랙스", shoes: "블랙 페니 로퍼", accessory: "실버 시계", note: "통기성 있는 슬랙스와 단정한 로퍼가 더위를 격식으로 정리합니다.", alternate: "오프화이트 리넨 재킷" },
-    mild: { name: "잉크 블루의 균형", tone: "cool", top: "화이트 옥스퍼드 셔츠", bottom: "네이비 울 슬랙스", shoes: "블랙 더비 슈즈", accessory: "그레인 레더 벨트", note: "낮과 저녁의 온도 차에는 셔츠 위 재킷을 더할 여백을 남겨두세요.", alternate: "네이비 호프색 재킷" },
-    cool: { name: "차콜 레이어", tone: "warm", top: "아이보리 니트와 셔츠", bottom: "차콜 울 슬랙스", shoes: "블랙 첼시 부츠", accessory: "울 코트", note: "보온을 한 번에 두껍게 쌓기보다 셔츠와 니트의 간격으로 조절합니다.", alternate: "다크네이비 더블 코트" },
-  },
-  minimal: {
-    hot: { name: "샌드 톤의 정적", tone: "warm", top: "샌드베이지 반팔 셔츠", bottom: "아이보리 코튼 팬츠", shoes: "브라운 레더 샌들", accessory: "무광 실버 링", note: "색을 줄이면 소재와 실루엣이 더위를 차분하게 보이게 합니다.", alternate: "오프화이트 리넨 셔츠" },
-    mild: { name: "블랙 앤 아이보리", tone: "cool", top: "아이보리 롱슬리브 티", bottom: "블랙 와이드 팬츠", shoes: "블랙 레더 스니커", accessory: "미니 숄더백", note: "가벼운 긴소매와 넓은 팬츠는 일교차를 가장 단순하게 해결합니다.", alternate: "차콜 셔츠 재킷" },
-    cool: { name: "그래파이트의 온도", tone: "cool", top: "차콜 터틀넥과 울 셔츠", bottom: "블랙 테이퍼드 팬츠", shoes: "블랙 첼시 부츠", accessory: "그래파이트 머플러", note: "온도를 흡수하는 짙은 톤은 레이어의 경계를 줄여 깔끔하게 보입니다.", alternate: "다크그레이 울 재킷" },
-  },
-};
+const STYLE_LABELS: Record<StyleId, string> = OUTFIT_STYLE_LABELS;
+
 
 /**
  * 기상 아틀리에 전용 룩 이미지 매핑. 스타일·체감 기온·강수 조건을 분리해
  * 추천 근거와 같은 실루엣이 카드에서 바로 읽히도록 한다.
  */
-const OUTFIT_IMAGE_MAP: Partial<Record<`${StyleId}-${"hot" | "mild" | "cool"}`, { src: string; alt: string }>> = {};
+const OUTFIT_IMAGE_MAP: Partial<Record<`${StyleId}-${TempBand}`, { src: string; alt: string }>> = {};
 const RAIN_OUTFIT_IMAGE_MAP: Partial<Record<StyleId, { src: string; alt: string }>> = {};
 
 const STORAGE_KEYS = {
@@ -205,11 +189,7 @@ function weatherIcon(code: number) {
   return [51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82, 95, 96, 99].includes(code) ? CloudRain : CloudSun;
 }
 
-function periodFromTemp(temp: number): "hot" | "mild" | "cool" {
-  if (temp >= 25) return "hot";
-  if (temp >= 15) return "mild";
-  return "cool";
-}
+
 
 function dayName(date: string, short = false) {
   return new Intl.DateTimeFormat("ko-KR", { weekday: short ? "short" : "long" }).format(new Date(`${date}T12:00:00`));
@@ -293,9 +273,14 @@ function getWeatherRisks(weather: WeatherData): WeatherRisk[] {
   return risks.slice(0, 2);
 }
 
+// 저장 id는 "<코디id>-<상황>" 형태다. 예전 형식("<스타일>-<기온대>-<상황>")으로 저장된
+// 기록도 이름을 잃지 않도록 코디 id 조회에 실패하면 스타일 이름으로 되돌린다.
 function outfitNameForId(id: string) {
-  const [styleId, band] = id.split("-") as [StyleId, "hot" | "mild" | "cool"];
-  return OUTFIT_LIBRARY[styleId]?.[band]?.name ?? "이전 코디 기록";
+  const outfitId = id.split("-").slice(0, 2).join("-");
+  const found = OUTFITS.find((o) => o.id === outfitId);
+  if (found) return found.name;
+  const styleId = id.split("-")[0] as StyleId;
+  return STYLE_LABELS[styleId] ? `${STYLE_LABELS[styleId]} 코디 기록` : "이전 코디 기록";
 }
 
 function formatArchiveDate(value?: string) {
@@ -317,9 +302,9 @@ function buildHourlyTimeline(weather: WeatherData): HourlyPoint[] {
 }
 
 export default function Home() {
-  const [city, setCity] = useState<City>(() => readStorage(STORAGE_KEYS.city, CITIES[0]));
+  const [city, setCity] = useState<City>(() => readStorage(STORAGE_KEYS.city, DEFAULT_CITY));
   const [weather, setWeather] = useState<WeatherData | null>(() => {
-    const initialCity = readStorage(STORAGE_KEYS.city, CITIES[0]);
+    const initialCity = readStorage(STORAGE_KEYS.city, DEFAULT_CITY);
     return readStorage<WeatherData | null>(weatherSnapshotKey(initialCity.id), readStorage<WeatherData | null>(STORAGE_KEYS.snapshot, null));
   });
   const [loadState, setLoadState] = useState<LoadState>("loading");
@@ -336,6 +321,7 @@ export default function Home() {
   const [lookRecords, setLookRecords] = useState<Record<string, LookRecord>>(() => readStorage<Record<string, LookRecord>>(STORAGE_KEYS.lookRecords, {}));
   const [outfitImageFailed, setOutfitImageFailed] = useState(false);
   const [cityOpen, setCityOpen] = useState(false);
+  const [citySearch, setCitySearch] = useState("");
   const [notice, setNotice] = useState("");
   const [errorText, setErrorText] = useState("");
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
@@ -427,39 +413,65 @@ export default function Home() {
     };
   }, []);
 
-  const outfit = useMemo(() => {
+  // 코디 75벌 데이터셋에서 오늘의 한 벌을 고른다. 같은 날·같은 조건이면 같은 결과가 나오고,
+  // 날짜가 바뀌면 후보 안에서 자연스럽게 돌아간다.
+  const { outfit, baseOutfit } = useMemo(() => {
     const comfortOffset = comfort === "warmer" ? -3 : comfort === "cooler" ? 3 : 0;
     const temperature = (weather?.current.apparent_temperature ?? 20) + comfortOffset;
-    const current = OUTFIT_LIBRARY[style][periodFromTemp(temperature)];
-    const toneAdjusted = tone === "all" || current.tone === tone
-      ? current
-      : OUTFIT_LIBRARY[style][periodFromTemp(temperature === 20 ? temperature + 2 : temperature)];
+    const band = tempBand(temperature);
     const rainChance = weather?.daily.precipitation_probability_max[0] ?? 0;
+    const rainy = rainChance >= 50;
+    const dateKey = todayKey();
+
+    const picked = recommendOutfits(style, band, tone, rainy, dateKey)[0];
+    const alternatePick =
+      alternateOutfit(style, band, tone, rainy, dateKey, "warmer") ??
+      alternateOutfit(style, band, tone, rainy, dateKey, "cooler");
+
+    const base = {
+      id: picked.id,
+      name: picked.name,
+      tone: picked.tone,
+      items: picked.items,
+      palette: picked.palette,
+      point: picked.point,
+      rainOk: picked.rainOk,
+      outer: picked.items.outer,
+      top: picked.items.top,
+      bottom: picked.items.bottom,
+      shoes: picked.items.shoes,
+      accessory: picked.items.acc ?? "가벼운 소품",
+      note: picked.tip,
+      alternate: alternatePick?.name ?? picked.point,
+    };
+
     const occasionAdjusted = occasion === "work"
-      ? { ...toneAdjusted, accessory: "구김 적은 토트백", alternate: "단정한 셔츠 재킷", note: `${toneAdjusted.note} 출근·미팅에는 형태가 흐트러지지 않는 가방과 한 겹을 더해 보세요.` }
+      ? { ...base, accessory: "구김 적은 토트백", alternate: "단정한 셔츠 재킷", note: `${base.note} 출근·미팅에는 형태가 흐트러지지 않는 가방과 한 겹을 더해 보세요.` }
       : occasion === "weekend"
-        ? { ...toneAdjusted, accessory: "가벼운 크로스백", alternate: "편한 러닝 스니커", note: `${toneAdjusted.note} 주말 동선에는 손이 비는 가방과 오래 걸어도 편한 신발이 실용적이에요.` }
+        ? { ...base, accessory: "가벼운 크로스백", alternate: "편한 러닝 스니커", note: `${base.note} 주말 동선에는 손이 비는 가방과 오래 걸어도 편한 신발이 실용적이에요.` }
         : occasion === "evening"
-          ? { ...toneAdjusted, accessory: "얇은 숄 또는 셔츠", alternate: "라이트 재킷", note: `${toneAdjusted.note} 해가 진 뒤와 실내 냉방을 위해 얇은 한 겹을 남겨두세요.` }
-          : toneAdjusted;
+          ? { ...base, accessory: "얇은 숄 또는 셔츠", alternate: "라이트 재킷", note: `${base.note} 해가 진 뒤와 실내 냉방을 위해 얇은 한 겹을 남겨두세요.` }
+          : base;
 
     // 강수 위험이 높은데도 샌들·캔버스화가 그대로 추천되던 모순을 막는다.
     // 실루엣과 스타일의 핵심은 보존하되, 발등과 소지품을 우선 보호하도록 한 항목만 교체한다.
-    if (rainChance >= 50) {
-      return {
+    if (rainChance >= 50 && !picked.rainOk) {
+      const rainAdjusted = {
         ...occasionAdjusted,
         shoes: "방수 레더 더비 슈즈",
         accessory: "접이식 우산",
         note: `${occasionAdjusted.note} 비가 예상되므로 발등을 덮는 방수 신발과 접이식 우산으로 마무리하세요.`,
         alternate: "발수 가공 셔츠 재킷",
       };
+      // 실루엣도 교체된 신발을 따라가야 카드의 그림과 글이 어긋나지 않는다.
+      return { outfit: { ...rainAdjusted, items: { ...rainAdjusted.items, shoes: rainAdjusted.shoes } }, baseOutfit: picked };
     }
-    return occasionAdjusted;
+    return { outfit: occasionAdjusted, baseOutfit: picked };
   }, [style, tone, weather, comfort, occasion]);
 
   const comfortOffset = comfort === "warmer" ? -3 : comfort === "cooler" ? 3 : 0;
-  const weatherBand = periodFromTemp((weather?.current.apparent_temperature ?? 20) + comfortOffset);
-  const outfitId = `${style}-${weatherBand}-${occasion}`;
+  const weatherBand = tempBand((weather?.current.apparent_temperature ?? 20) + comfortOffset);
+  const outfitId = `${outfit.id}-${occasion}`;
   const isSaved = saved.includes(outfitId);
   const isWorn = worn.includes(outfitId);
   const rainRisk = (weather?.daily.precipitation_probability_max[0] ?? 0) >= 50;
@@ -515,9 +527,17 @@ export default function Home() {
   const tomorrowPlanId = weather?.daily.time[1] ? `${city.id}-${weather.daily.time[1]}` : "";
   const isTomorrowPrepared = Boolean(tomorrowPlanId && preparedTomorrow.includes(tomorrowPlanId));
 
+  // 전국 161곳이라 검색 없이는 원하는 지역을 찾을 수 없다. 지역명과 시도명 양쪽으로 찾는다.
+  const visibleCities = useMemo(() => {
+    const keyword = citySearch.trim();
+    if (!keyword) return CITIES;
+    return CITIES.filter((item) => item.name.includes(keyword) || item.subtitle.includes(keyword));
+  }, [citySearch]);
+
   const selectCity = (next: City) => {
     setCity(next);
     setCityOpen(false);
+    setCitySearch("");
     requestAnimationFrame(() => cityTriggerRef.current?.focus());
   };
 
@@ -711,11 +731,22 @@ export default function Home() {
         {cityOpen && (
           <div id="city-menu" className="city-menu" role="dialog" aria-modal="true" aria-label="지역 선택">
             <div className="city-menu-head"><span>어디의 날씨를 볼까요?</span><div><button type="button" onClick={useLocation}>현재 위치 사용</button><button type="button" className="city-favorite-toggle" onClick={toggleFavoriteCity} aria-pressed={isCityFavorite}><Star size={13} fill={isCityFavorite ? "currentColor" : "none"} /> {isCityFavorite ? "저장됨" : "이 지역 저장"}</button></div></div>
-            {CITIES.map((item) => (
-              <button key={item.id} type="button" className={city.id === item.id ? "city-option is-active" : "city-option"} onClick={() => selectCity(item)}>
-                <span><strong>{item.name}</strong><small>{item.subtitle}</small></span>{city.id === item.id && <Check size={16} />}
-              </button>
-            ))}
+            <input
+              className="city-search"
+              type="search"
+              value={citySearch}
+              onChange={(event) => setCitySearch(event.target.value)}
+              placeholder={`지역 검색 (전국 ${CITIES.length}곳)`}
+              aria-label="지역 검색"
+            />
+            <div className="city-option-list">
+              {visibleCities.length === 0 && <p className="city-empty">검색 결과가 없어요. 시·군·구 이름으로 찾아보세요.</p>}
+              {visibleCities.map((item) => (
+                <button key={item.id} type="button" className={city.id === item.id ? "city-option is-active" : "city-option"} onClick={() => selectCity(item)}>
+                  <span><strong>{item.name}</strong><small>{item.subtitle}</small></span>{city.id === item.id && <Check size={16} />}
+                </button>
+              ))}
+            </div>
           </div>
         )}
       </header>
@@ -780,8 +811,13 @@ export default function Home() {
               <img src={outfitImage?.src} alt={outfitImage?.alt} loading="lazy" onError={() => setOutfitImageFailed(true)} />
             ) : (
               <>
-                <img src={`${ASSET_BASE}weather-fit-closet.webp`} alt="차분한 색감의 니트와 가죽 소품이 정돈된 옷장" loading="lazy" />
-                <span className="image-pending-note">{outfitImageFailed ? "전용 이미지 대신 옷장 비주얼 표시" : "전용 실루엣 준비 중"}</span>
+                {/* 코디 문구에 맞는 옷 모양에 실제 색을 칠해 보여준다 — 글자만으로는 느낌이 오지 않는다는 피드백에 대한 응답. */}
+                <OutfitSilhouette items={outfit.items} />
+                <ul className="outfit-palette" aria-label="이 코디의 색 구성">
+                  {baseOutfit.palette.map((color) => (
+                    <li key={color} style={{ background: color }} title={color} />
+                  ))}
+                </ul>
               </>
             )}
             <div className="visual-caption"><span>LOOK / 01</span><span>{outfit.tone === "cool" ? "COOL TONE" : "WARM TONE"}</span></div>
@@ -789,11 +825,13 @@ export default function Home() {
           <article className="outfit-card">
             <div className="outfit-title-row"><div><p className="eyebrow">Today’s outfit</p><h2 id="outfit-heading">{outfit.name}</h2></div><button type="button" className={isSaved ? "round-action is-active" : "round-action"} onClick={toggleSaved} aria-pressed={isSaved} aria-label={isSaved ? "저장한 룩에서 빼기" : "이 룩 저장하기"}><Bookmark size={18} fill={isSaved ? "currentColor" : "none"} /></button></div>
             <p className="outfit-note">{outfit.note}</p>
+            <p className="outfit-point"><span>POINT</span>{baseOutfit.point}</p>
             <section className="fit-reasons" aria-label="이 룩이 맞는 이유">
               <div className="fit-reasons-head"><span>FIT CHECK</span><strong>이 룩이 맞는 이유</strong></div>
               <div className="signal-list">{fitSignals.map((signal) => <div key={signal.label} className="signal-item"><span>{signal.label}</span><strong>{signal.value}</strong><small>{signal.detail}</small></div>)}</div>
             </section>
             <dl className="outfit-pieces">
+              {outfit.outer && <div><dt>아우터</dt><dd>{outfit.outer}{missing.includes(outfit.outer) && <small>옷장에 없음</small>}</dd><button type="button" onClick={() => toggleMissing(outfit.outer!)}>{missing.includes(outfit.outer) ? "있음으로" : "없음"}</button></div>}
               <div><dt>상의</dt><dd>{outfit.top}{missing.includes(outfit.top) && <small>옷장에 없음</small>}</dd><button type="button" onClick={() => toggleMissing(outfit.top)}>{missing.includes(outfit.top) ? "있음으로" : "없음"}</button></div>
               <div><dt>하의</dt><dd>{outfit.bottom}{missing.includes(outfit.bottom) && <small>옷장에 없음</small>}</dd><button type="button" onClick={() => toggleMissing(outfit.bottom)}>{missing.includes(outfit.bottom) ? "있음으로" : "없음"}</button></div>
               <div><dt>신발</dt><dd>{outfit.shoes}{missing.includes(outfit.shoes) && <small>옷장에 없음</small>}</dd><button type="button" onClick={() => toggleMissing(outfit.shoes)}>{missing.includes(outfit.shoes) ? "있음으로" : "없음"}</button></div>

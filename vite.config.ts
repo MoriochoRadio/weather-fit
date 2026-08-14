@@ -23,14 +23,12 @@ export default defineConfig({
     rollupOptions: {
       output: {
         // 앱 코드보다 훨씬 느리게 바뀌는 벤더 코드를 분리해 재방문 캐시를 유지한다.
-        // 객체 형태로는 react-dom 내부 모듈이 앱 청크로 새어 들어가서 모듈 경로로 직접 가른다.
+        //
+        // 벤더를 react-runtime/vendor로 더 잘게 쪼개면 Radix·cva 같은 청크가 React보다 먼저
+        // 평가되면서 React.forwardRef가 undefined가 되어 화면이 통째로 죽는다. 캐시 이득보다
+        // 위험이 커서 node_modules는 한 덩어리로 유지한다.
         manualChunks(id) {
-          if (!id.includes("node_modules")) return;
-          if (id.includes("lucide-react")) return "ui-icons";
-          if (/[\\/]node_modules[\\/](react|react-dom|scheduler|wouter)[\\/]/.test(id)) {
-            return "react-runtime";
-          }
-          return "vendor";
+          if (id.includes("node_modules")) return "vendor";
         },
       },
     },
