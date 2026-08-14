@@ -412,6 +412,12 @@ export default function Home() {
   const PreparednessIcon = weather ? getPreparedness(weather).icon : Shirt;
   const WeatherIcon = weather ? weatherIcon(weather.current.weather_code) : CloudSun;
   const missingPieces = [outfit.top, outfit.bottom, outfit.shoes, outfit.accessory].filter((item) => missing.includes(item));
+  const wardrobeAlternatives = missingPieces.map((item) => {
+    if (item === outfit.shoes) return { item, replacement: rainRisk ? "발수 운동화 또는 러버 부츠" : "같은 톤의 걷기 편한 스니커", detail: rainRisk ? "비 예보에는 발등과 밑창을 보호하는 조건을 유지하세요." : "오래 걸어도 발이 편한 신발이면 실루엣의 균형을 지킬 수 있어요." };
+    if (item === outfit.top) return { item, replacement: weatherBand === "hot" ? "통기성 좋은 밝은 반팔 셔츠" : "같은 무게의 기본 셔츠 또는 니트", detail: "색보다 두께와 통기성을 먼저 맞추면 체감 기준이 유지돼요." };
+    if (item === outfit.bottom) return { item, replacement: weatherBand === "hot" ? "가벼운 코튼 쇼츠 또는 와이드 팬츠" : "움직임이 편한 같은 톤 팬츠", detail: "하의는 소재의 무게와 활동성을 유지하는 것이 핵심이에요." };
+    return { item, replacement: rainRisk ? "접이식 우산" : "작은 가방 또는 모자", detail: rainRisk ? "오늘은 액세서리보다 우산이 우선이에요." : "개인 소지품으로 룩의 밀도를 가볍게 조절하세요." };
+  });
   const rainWindow = weather ? nextRainWindow(weather) : null;
   const weatherRisks = weather ? getWeatherRisks(weather) : [];
   const departureAdvice = weather ? getDepartureAdvice(weather) : null;
@@ -678,6 +684,7 @@ export default function Home() {
               <div><dt>신발</dt><dd>{outfit.shoes}{missing.includes(outfit.shoes) && <small>옷장에 없음</small>}</dd><button type="button" onClick={() => toggleMissing(outfit.shoes)}>{missing.includes(outfit.shoes) ? "있음으로" : "없음"}</button></div>
               <div><dt>포인트</dt><dd>{outfit.accessory}{missing.includes(outfit.accessory) && <small>옷장에 없음</small>}</dd><button type="button" onClick={() => toggleMissing(outfit.accessory)}>{missing.includes(outfit.accessory) ? "있음으로" : "없음"}</button></div>
             </dl>
+            {wardrobeAlternatives.length > 0 && <section className="wardrobe-swaps" aria-label="결품 대체 제안"><div><span>WARDROBE SWAP</span><strong>없는 아이템은 이렇게 바꿔보세요.</strong></div><ul>{wardrobeAlternatives.map((alternative) => <li key={alternative.item}><span>{alternative.item}</span><strong>{alternative.replacement}</strong><small>{alternative.detail}</small></li>)}</ul></section>}
             <div className="outfit-actions"><button type="button" className={isWorn ? "primary-action is-done" : "primary-action"} onClick={toggleWorn}>{isWorn ? <Check size={17} /> : <Footprints size={17} />}{isWorn ? "오늘 착용 기록됨" : "오늘 입은 룩으로 기록"}</button><button type="button" className="text-action" onClick={() => void shareOutfit()}><Share2 size={16} /> 공유</button></div>
             {checklist.length > 0 && <section className="leave-checklist" aria-label="나가기 전 체크리스트"><div><span>LEAVING IN 30 SECONDS</span><strong>나가기 전</strong></div><div className="check-steps">{checklist.map((step) => { const StepIcon = step.icon; const checked = checkedSteps.includes(step.id); return <button key={step.id} type="button" aria-pressed={checked} className={checked ? "check-step is-done" : "check-step"} onClick={() => setCheckedSteps((items) => checked ? items.filter((item) => item !== step.id) : [...items, step.id])}><StepIcon size={16} /><span><b>{step.label}</b><small>{step.detail}</small></span>{checked ? <CircleCheck size={17} /> : <span className="step-marker" />}</button>; })}</div></section>}
           </article>
