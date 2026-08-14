@@ -31,6 +31,12 @@ import {
   Wind,
 } from "lucide-react";
 
+import type * as React from "react";
+
+// public/assets는 배포 base(GitHub Pages의 /weather-fit/) 아래에 그대로 놓인다.
+// 경로를 하드코딩하면 로컬 개발과 저장소 이름 변경에서 깨지므로 BASE_URL을 기준으로 만든다.
+const ASSET_BASE = `${import.meta.env.BASE_URL}assets/`;
+
 type City = { id: string; name: string; subtitle: string; latitude: number; longitude: number };
 type StyleId = "oldmoney" | "casual" | "formal" | "minimal";
 type ToneId = "all" | "cool" | "warm";
@@ -687,7 +693,7 @@ export default function Home() {
     <div className="weather-fit-app">
       <header className="app-header">
         <a className="brand-lockup" href="#today" aria-label="Weather Fit 홈으로">
-          <img src="/weather-fit/assets/weather-fit-logo.webp" alt="" className="brand-mark" />
+          <img src={`${ASSET_BASE}weather-fit-logo.webp`} alt="" className="brand-mark" />
           <span>
             <strong>Weather Fit</strong>
             <small>daily dressing index</small>
@@ -725,7 +731,7 @@ export default function Home() {
         {weatherRisks.length > 0 && <section className="weather-alerts" aria-label="오늘의 외출 주의" role="status"><div className="weather-alerts-title"><AlertTriangle size={19} strokeWidth={1.8} /><div><span>Weather attention</span><strong>오늘의 외출 주의</strong></div></div><ul>{weatherRisks.map((risk) => <li key={risk.id} className={`weather-alert is-${risk.level}`}><strong>{risk.label}</strong><p>{risk.detail}</p><small>{risk.action}</small></li>)}</ul></section>}
 
         <section className="weather-hero" aria-label="오늘의 날씨">
-          <div className="hero-image" aria-hidden="true" />
+          <div className="hero-image" aria-hidden="true" style={{ "--hero-image": `url(${ASSET_BASE}weather-fit-hero.webp)` } as React.CSSProperties} />
           <div className="hero-copy">
             <p className="eyebrow">{city.subtitle} · {weather ? dayName(weather.daily.time[0]) : "기상 연결 중"}</p>
             {loadState === "loading" && !weather ? (
@@ -774,7 +780,7 @@ export default function Home() {
               <img src={outfitImage?.src} alt={outfitImage?.alt} loading="lazy" onError={() => setOutfitImageFailed(true)} />
             ) : (
               <>
-                <img src="/weather-fit/assets/weather-fit-closet.webp" alt="차분한 색감의 니트와 가죽 소품이 정돈된 옷장" loading="lazy" />
+                <img src={`${ASSET_BASE}weather-fit-closet.webp`} alt="차분한 색감의 니트와 가죽 소품이 정돈된 옷장" loading="lazy" />
                 <span className="image-pending-note">{outfitImageFailed ? "전용 이미지 대신 옷장 비주얼 표시" : "전용 실루엣 준비 중"}</span>
               </>
             )}
@@ -807,7 +813,7 @@ export default function Home() {
           </article>
           <article className="week-card">
             <div className="card-topline"><span className="eyebrow">7-day fabric forecast</span><ExternalLink size={17} /></div>
-            <div className="week-content"><img src="/weather-fit/assets/weather-fit-weather-moods.webp" alt="맑음과 비, 선선한 날의 옷차림 분위기" />
+            <div className="week-content"><img src={`${ASSET_BASE}weather-fit-weather-moods.webp`} alt="맑음과 비, 선선한 날의 옷차림 분위기" />
               <div className="week-list">{weather ? weather.daily.time.slice(0, 5).map((date, index) => <div key={date} className="week-day"><span>{index === 0 ? "오늘" : dayName(date, true)}</span><i className={weather.daily.precipitation_probability_max[index] >= 50 ? "weather-dot rain" : "weather-dot"} /><strong>{Math.round(weather.daily.temperature_2m_max[index])}°</strong><small>{weatherLabel(weather.daily.weather_code[index])}</small></div>) : <p>예보를 준비하고 있어요.</p>}</div>
             </div>
           </article>

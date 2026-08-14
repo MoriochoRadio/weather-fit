@@ -5,7 +5,9 @@ import Home from "./pages/Home";
 
 
 function Router() {
-  const homePath = import.meta.env.BASE_URL === "/weather-fit/" ? "/weather-fit/" : "/";
+  // BASE_URL은 로컬에서 "/", GitHub Pages 빌드에서 "/weather-fit/"가 된다.
+  // 저장소 이름을 바꿔도 라우팅이 따라가도록 값을 그대로 쓴다.
+  const homePath = import.meta.env.BASE_URL;
 
   return (
     <Switch>
