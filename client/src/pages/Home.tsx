@@ -292,6 +292,7 @@ export default function Home() {
   const [checkedSteps, setCheckedSteps] = useState<string[]>(() => readStorage<string[]>(`${STORAGE_KEYS.checklist}-${todayKey()}`, []));
   const [favoriteCities, setFavoriteCities] = useState<City[]>(() => readStorage<City[]>(STORAGE_KEYS.favoriteCities, []));
   const [lookRecords, setLookRecords] = useState<Record<string, LookRecord>>(() => readStorage<Record<string, LookRecord>>(STORAGE_KEYS.lookRecords, {}));
+  const [outfitImageFailed, setOutfitImageFailed] = useState(false);
   const [cityOpen, setCityOpen] = useState(false);
   const [notice, setNotice] = useState("");
   const [errorText, setErrorText] = useState("");
@@ -338,6 +339,7 @@ export default function Home() {
   useEffect(() => writeStorage(`${STORAGE_KEYS.checklist}-${todayKey()}`, checkedSteps), [checkedSteps]);
   useEffect(() => writeStorage(STORAGE_KEYS.favoriteCities, favoriteCities), [favoriteCities]);
   useEffect(() => writeStorage(STORAGE_KEYS.lookRecords, lookRecords), [lookRecords]);
+  useEffect(() => setOutfitImageFailed(false), [style, weather?.current.apparent_temperature, weather?.daily.precipitation_probability_max[0]]);
 
   useEffect(() => {
     if (!cityOpen) return;
@@ -379,6 +381,7 @@ export default function Home() {
   const rainRisk = (weather?.daily.precipitation_probability_max[0] ?? 0) >= 50;
   // 생성 완료 자산만 이 매핑에 등록한다. 실패한 생성 작업은 기존 옷장 비주얼로 안전하게 대체한다.
   const outfitImage = rainRisk ? RAIN_OUTFIT_IMAGE_MAP[style] : OUTFIT_IMAGE_MAP[`${style}-${weatherBand}`];
+  const shouldShowOutfitImage = Boolean(outfitImage && !outfitImageFailed);
   const PreparednessIcon = weather ? getPreparedness(weather).icon : Shirt;
   const WeatherIcon = weather ? weatherIcon(weather.current.weather_code) : CloudSun;
   const missingPieces = [outfit.top, outfit.bottom, outfit.shoes, outfit.accessory].filter((item) => missing.includes(item));
@@ -621,13 +624,13 @@ export default function Home() {
         </section>
 
         <section className="outfit-spread" aria-labelledby="outfit-heading">
-          <div className={outfitImage ? "outfit-visual has-look-image" : "outfit-visual"}>
-            {outfitImage ? (
-              <img src={outfitImage.src} alt={outfitImage.alt} loading="lazy" />
+          <div className={shouldShowOutfitImage ? "outfit-visual has-look-image" : "outfit-visual"}>
+            {shouldShowOutfitImage ? (
+              <img src={outfitImage?.src} alt={outfitImage?.alt} loading="lazy" onError={() => setOutfitImageFailed(true)} />
             ) : (
               <>
                 <img src="/weather-fit/assets/weather-fit-closet.webp" alt="차분한 색감의 니트와 가죽 소품이 정돈된 옷장" loading="lazy" />
-                <span className="image-pending-note">전용 실루엣 준비 중</span>
+                <span className="image-pending-note">{outfitImageFailed ? "전용 이미지 대신 옷장 비주얼 표시" : "전용 실루엣 준비 중"}</span>
               </>
             )}
             <div className="visual-caption"><span>LOOK / 01</span><span>{outfit.tone === "cool" ? "COOL TONE" : "WARM TONE"}</span></div>
