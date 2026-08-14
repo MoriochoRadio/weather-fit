@@ -319,6 +319,7 @@ export default function Home() {
   const [comfort, setComfort] = useState<ComfortId>(() => readStorage<ComfortId>(STORAGE_KEYS.comfort, "neutral"));
   const [occasion, setOccasion] = useState<OccasionId>(() => readStorage<OccasionId>(STORAGE_KEYS.occasion, "any"));
   const [checkedSteps, setCheckedSteps] = useState<string[]>(() => readStorage<string[]>(`${STORAGE_KEYS.checklist}-${todayKey()}`, []));
+  const [preparedTomorrow, setPreparedTomorrow] = useState<string[]>(() => readStorage<string[]>("weather-fit-prepared-tomorrow", []));
   const [favoriteCities, setFavoriteCities] = useState<City[]>(() => readStorage<City[]>(STORAGE_KEYS.favoriteCities, []));
   const [lookRecords, setLookRecords] = useState<Record<string, LookRecord>>(() => readStorage<Record<string, LookRecord>>(STORAGE_KEYS.lookRecords, {}));
   const [outfitImageFailed, setOutfitImageFailed] = useState(false);
@@ -374,6 +375,7 @@ export default function Home() {
   useEffect(() => writeStorage(STORAGE_KEYS.comfort, comfort), [comfort]);
   useEffect(() => writeStorage(STORAGE_KEYS.occasion, occasion), [occasion]);
   useEffect(() => writeStorage(`${STORAGE_KEYS.checklist}-${todayKey()}`, checkedSteps), [checkedSteps]);
+  useEffect(() => writeStorage("weather-fit-prepared-tomorrow", preparedTomorrow), [preparedTomorrow]);
   useEffect(() => writeStorage(STORAGE_KEYS.favoriteCities, favoriteCities), [favoriteCities]);
   useEffect(() => writeStorage(STORAGE_KEYS.lookRecords, lookRecords), [lookRecords]);
   useEffect(() => setOutfitImageFailed(false), [style, weather?.current.apparent_temperature, weather?.daily.precipitation_probability_max[0]]);
@@ -475,6 +477,8 @@ export default function Home() {
   }).sort((a, b) => (b.recordedAt ?? "").localeCompare(a.recordedAt ?? "")), [lookRecords, saved, worn]);
 
   const isCityFavorite = favoriteCities.some((item) => item.id === city.id);
+  const tomorrowPlanId = weather?.daily.time[1] ? `${city.id}-${weather.daily.time[1]}` : "";
+  const isTomorrowPrepared = Boolean(tomorrowPlanId && preparedTomorrow.includes(tomorrowPlanId));
 
   const selectCity = (next: City) => {
     setCity(next);
@@ -541,6 +545,12 @@ export default function Home() {
     setWorn((items) => items.filter((item) => item !== id));
     setLookRecords((items) => { const next = { ...items }; delete next[id]; return next; });
     setNotice("선택한 코디 기록을 정리했어요.");
+  };
+
+  const toggleTomorrowPrepared = () => {
+    if (!tomorrowPlanId) return;
+    setPreparedTomorrow((items) => isTomorrowPrepared ? items.filter((item) => item !== tomorrowPlanId) : [...items, tomorrowPlanId]);
+    setNotice(isTomorrowPrepared ? "내일 준비 표시를 지웠어요." : "내일 코디 준비를 기록했어요.");
   };
 
   const shareOutfit = async () => {
@@ -726,7 +736,7 @@ export default function Home() {
         <section className="lower-grid">
           <article className="tomorrow-card">
             <div className="card-topline"><span className="eyebrow">Tomorrow, at a glance</span><CalendarDays size={18} /></div>
-            {weather ? <><h2>{weather.daily.time[1] ? `${dayName(weather.daily.time[1])}도 미리 준비하세요.` : "내일 예보를 준비 중이에요."}</h2><p>{weather.daily.time[1] ? `${Math.round(weather.daily.temperature_2m_min[1])}° / ${Math.round(weather.daily.temperature_2m_max[1])}° · 강수 ${weather.daily.precipitation_probability_max[1] ?? 0}%` : "내일의 온도 흐름을 곧 확인할 수 있어요."}</p><div className="tomorrow-rule">{(weather.daily.precipitation_probability_max[1] ?? 0) >= 40 ? "비가 예보되어 있어요. 오늘 밤 방수 신발을 꺼내두세요." : "온도 변화가 크지 않아요. 오늘의 베이스 룩을 그대로 활용할 수 있어요."}</div></> : <p>날씨 정보를 불러오면 내일의 준비물도 함께 정리해 드려요.</p>}
+            {weather ? <><h2>{weather.daily.time[1] ? `${dayName(weather.daily.time[1])}도 미리 준비하세요.` : "내일 예보를 준비 중이에요."}</h2><p>{weather.daily.time[1] ? `${Math.round(weather.daily.temperature_2m_min[1])}° / ${Math.round(weather.daily.temperature_2m_max[1])}° · 강수 ${weather.daily.precipitation_probability_max[1] ?? 0}%` : "내일의 온도 흐름을 곧 확인할 수 있어요."}</p><div className="tomorrow-rule">{(weather.daily.precipitation_probability_max[1] ?? 0) >= 40 ? "비가 예보되어 있어요. 오늘 밤 방수 신발을 꺼내두세요." : "온도 변화가 크지 않아요. 오늘의 베이스 룩을 그대로 활용할 수 있어요."}</div>{weather.daily.time[1] && <button type="button" className={isTomorrowPrepared ? "tomorrow-action is-done" : "tomorrow-action"} onClick={toggleTomorrowPrepared} aria-pressed={isTomorrowPrepared}>{isTomorrowPrepared ? <Check size={15} /> : <CalendarDays size={15} />}{isTomorrowPrepared ? "내일 준비 완료" : "내일 코디 미리 준비"}</button>}</> : <p>날씨 정보를 불러오면 내일의 준비물도 함께 정리해 드려요.</p>}
           </article>
           <article className="week-card">
             <div className="card-topline"><span className="eyebrow">7-day fabric forecast</span><ExternalLink size={17} /></div>
