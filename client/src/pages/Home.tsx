@@ -10,6 +10,7 @@ import {
   Check,
   ChevronDown,
   CircleCheck,
+  Clock3,
   CloudRain,
   CloudSun,
   Droplets,
@@ -238,6 +239,21 @@ function nextRainWindow(weather: WeatherData) {
   return weather.hourly.time[nextIndex]?.slice(11, 16) ?? null;
 }
 
+function getDepartureAdvice(weather: WeatherData) {
+  const currentIndex = Math.max(0, weather.hourly.time.findIndex((time) => time >= weather.current.time));
+  const nextRainIndex = weather.hourly.precipitation_probability.findIndex((chance, index) => index >= currentIndex && chance >= 40);
+  if (nextRainIndex >= 0) {
+    const hours = nextRainIndex - currentIndex;
+    const rainTime = weather.hourly.time[nextRainIndex]?.slice(11, 16) ?? "조금 뒤";
+    return hours <= 1
+      ? { title: "지금 출발이 좋아요", detail: `${rainTime} 이후 비 가능성이 높아져요. 우산을 바로 챙기세요.`, tone: "rain" }
+      : { title: `${hours}시간 안에 출발해 보세요`, detail: `${rainTime} 이후 비 가능성이 높아져요. 그 전이라도 방수 신발을 권해요.`, tone: "rain" };
+  }
+  if (weather.current.apparent_temperature >= 31) return { title: "가장 더운 낮을 피해 보세요", detail: "통기성 있는 이너와 물을 준비하고, 가능하면 그늘 동선을 선택하세요.", tone: "heat" };
+  if ((weather.daily.uv_index_max[0] ?? 0) >= 7) return { title: "차양을 먼저 준비하세요", detail: "자외선이 강한 날이에요. 모자나 자외선 차단제를 외출 루틴에 넣으세요.", tone: "sun" };
+  return { title: "외출하기 무난한 흐름이에요", detail: "급격한 강수 변화가 없어요. 오늘의 베이스 룩을 그대로 활용해도 좋아요.", tone: "calm" };
+}
+
 function getWeatherRisks(weather: WeatherData): WeatherRisk[] {
   const risks: WeatherRisk[] = [];
   const apparent = weather.current.apparent_temperature;
@@ -398,6 +414,7 @@ export default function Home() {
   const missingPieces = [outfit.top, outfit.bottom, outfit.shoes, outfit.accessory].filter((item) => missing.includes(item));
   const rainWindow = weather ? nextRainWindow(weather) : null;
   const weatherRisks = weather ? getWeatherRisks(weather) : [];
+  const departureAdvice = weather ? getDepartureAdvice(weather) : null;
   const hourlyTimeline = weather ? buildHourlyTimeline(weather) : [];
   const timelineMin = hourlyTimeline.length ? Math.min(...hourlyTimeline.map((item) => item.temperature)) : 0;
   const timelineMax = hourlyTimeline.length ? Math.max(...hourlyTimeline.map((item) => item.temperature)) : 0;
@@ -621,6 +638,8 @@ export default function Home() {
           <div className="strip-label"><Thermometer size={17} /><span>오늘의 온도 흐름</span><strong>{Math.round(weather.daily.temperature_2m_min[0])}° <i /> {Math.round(weather.daily.temperature_2m_max[0])}°</strong></div>
           {hourlyTimeline.length > 1 ? <><div className="temperature-line" aria-hidden="true"><svg viewBox="0 0 100 44" preserveAspectRatio="none"><polyline points={timelinePoints} /></svg>{hourlyTimeline.map((item, index) => <span key={item.hour} className="temp-dot" style={{ left: `${hourlyTimeline.length === 1 ? 50 : 6 + (88 * index) / (hourlyTimeline.length - 1)}%`, top: `${39 - ((item.temperature - timelineMin) / timelineRange) * 28}px` }} />)}</div><div className="time-legend">{hourlyTimeline.map((item) => <span key={item.hour}><b>{item.hour}</b><strong>{item.temperature}°</strong><small>{item.precipitation >= 40 ? `비 ${item.precipitation}%` : "강수 낮음"}</small></span>)}</div></> : <div className="timeline-empty">시간대별 흐름을 준비하고 있어요.</div>}
         </section>}
+
+        {departureAdvice && <section className={`departure-cue is-${departureAdvice.tone}`} aria-label="외출 시점 제안"><Clock3 size={20} strokeWidth={1.7} /><div><span>Departure cue</span><strong>{departureAdvice.title}</strong><p>{departureAdvice.detail}</p></div></section>}
 
         <section className="decision-intro" aria-label="오늘의 준비물">
           <div className="decision-copy"><span className="eyebrow">Dressing rationale</span><h1>날씨를 읽고,<br />한 벌을 결정하세요.</h1><p>{weather ? reasonFor(weather) : "날씨를 불러오면 오늘의 가장 실용적인 한 벌을 정리해 드릴게요."}</p></div>
