@@ -15,7 +15,6 @@ import {
   CloudSun,
   Droplets,
   Download,
-  ExternalLink,
   Footprints,
   Layers3,
   MapPin,
@@ -43,6 +42,9 @@ import type { Outfit, TempBand } from "@/types";
 // public/assets는 배포 base(GitHub Pages의 /weather-fit/) 아래에 그대로 놓인다.
 // 경로를 하드코딩하면 로컬 개발과 저장소 이름 변경에서 깨지므로 BASE_URL을 기준으로 만든다.
 const ASSET_BASE = `${import.meta.env.BASE_URL}assets/`;
+
+// 예보 요청 일수와 주간 예보·주간 준비가 보는 일수를 한 곳에서 맞춘다.
+const FORECAST_DAYS = 7;
 
 type City = { id: string; name: string; subtitle: string; latitude: number; longitude: number };
 type StyleId = "oldmoney" | "casual" | "formal" | "minimal";
@@ -343,7 +345,7 @@ export default function Home() {
         current: "temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m",
         hourly: "temperature_2m,precipitation_probability",
         daily: "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,uv_index_max",
-        forecast_days: "7",
+        forecast_days: String(FORECAST_DAYS),
         timezone: "auto",
       });
       const response = await fetch(`https://api.open-meteo.com/v1/forecast?${params.toString()}`);
@@ -512,14 +514,14 @@ export default function Home() {
   ] : [];
   const weekPrep = useMemo(() => {
     if (!weather) return [];
-    const days = weather.daily.time.slice(0, 5);
+    const days = weather.daily.time.slice(0, FORECAST_DAYS);
     const rainDays = days.filter((_, index) => (weather.daily.precipitation_probability_max[index] ?? 0) >= 50).length;
     const highUvDays = days.filter((_, index) => (weather.daily.uv_index_max[index] ?? 0) >= 6).length;
     const hotDays = days.filter((_, index) => (weather.daily.temperature_2m_max[index] ?? 0) >= 28).length;
     const prep = [] as { id: string; label: string; detail: string }[];
-    if (rainDays) prep.push({ id: "rain", label: "방수 신발", detail: `앞으로 5일 중 ${rainDays}일은 강수 대비가 필요해요.` });
+    if (rainDays) prep.push({ id: "rain", label: "방수 신발", detail: `앞으로 ${days.length}일 중 ${rainDays}일은 강수 대비가 필요해요.` });
     if (highUvDays) prep.push({ id: "sun", label: "차양 아이템", detail: `자외선이 높은 날이 ${highUvDays}일 있어요.` });
-    if (hotDays) prep.push({ id: "heat", label: "여벌 이너", detail: `최고 ${Math.max(...weather.daily.temperature_2m_max.slice(0, 5).map(Math.round))}°까지 올라가요.` });
+    if (hotDays) prep.push({ id: "heat", label: "여벌 이너", detail: `최고 ${Math.max(...weather.daily.temperature_2m_max.slice(0, days.length).map(Math.round))}°까지 올라가요.` });
     return prep.length ? prep : [{ id: "base", label: "기본 레이어", detail: "이번 주는 오늘의 베이스 룩을 중심으로 준비해도 좋아요." }];
   }, [weather]);
   const archiveItems = useMemo(() => Array.from(new Set([...saved, ...worn])).map((id) => {
@@ -855,9 +857,9 @@ export default function Home() {
             {weather ? <><h2>{weather.daily.time[1] ? `${dayName(weather.daily.time[1])}도 미리 준비하세요.` : "내일 예보를 준비 중이에요."}</h2><p>{weather.daily.time[1] ? `${Math.round(weather.daily.temperature_2m_min[1])}° / ${Math.round(weather.daily.temperature_2m_max[1])}° · 강수 ${weather.daily.precipitation_probability_max[1] ?? 0}%` : "내일의 온도 흐름을 곧 확인할 수 있어요."}</p><div className="tomorrow-rule">{(weather.daily.precipitation_probability_max[1] ?? 0) >= 40 ? "비가 예보되어 있어요. 오늘 밤 방수 신발을 꺼내두세요." : "온도 변화가 크지 않아요. 오늘의 베이스 룩을 그대로 활용할 수 있어요."}</div>{weather.daily.time[1] && <button type="button" className={isTomorrowPrepared ? "tomorrow-action is-done" : "tomorrow-action"} onClick={toggleTomorrowPrepared} aria-pressed={isTomorrowPrepared}>{isTomorrowPrepared ? <Check size={15} /> : <CalendarDays size={15} />}{isTomorrowPrepared ? "내일 준비 완료" : "내일 코디 미리 준비"}</button>}</> : <p>날씨 정보를 불러오면 내일의 준비물도 함께 정리해 드려요.</p>}
           </article>
           <article className="week-card">
-            <div className="card-topline"><span className="eyebrow">7-day fabric forecast</span><ExternalLink size={17} /></div>
+            <div className="card-topline"><span className="eyebrow">{FORECAST_DAYS}-day fabric forecast</span><CloudSun size={17} aria-hidden="true" /></div>
             <div className="week-content"><img src={`${ASSET_BASE}weather-fit-weather-moods.webp`} alt="맑음과 비, 선선한 날의 옷차림 분위기" />
-              <div className="week-list">{weather ? weather.daily.time.slice(0, 5).map((date, index) => <div key={date} className="week-day"><span>{index === 0 ? "오늘" : dayName(date, true)}</span><i className={weather.daily.precipitation_probability_max[index] >= 50 ? "weather-dot rain" : "weather-dot"} /><strong>{Math.round(weather.daily.temperature_2m_max[index])}°</strong><small>{weatherLabel(weather.daily.weather_code[index])}</small></div>) : <p>예보를 준비하고 있어요.</p>}</div>
+              <div className="week-list">{weather ? weather.daily.time.slice(0, FORECAST_DAYS).map((date, index) => <div key={date} className="week-day"><span>{index === 0 ? "오늘" : dayName(date, true)}</span><i className={weather.daily.precipitation_probability_max[index] >= 50 ? "weather-dot rain" : "weather-dot"} /><strong>{Math.round(weather.daily.temperature_2m_max[index])}°</strong><small>{weatherLabel(weather.daily.weather_code[index])}</small></div>) : <p>예보를 준비하고 있어요.</p>}</div>
             </div>
           </article>
         </section>
