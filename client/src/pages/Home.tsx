@@ -880,7 +880,7 @@ export default function Home() {
         {archiveItems.length > 0 && <section className="history-ledger" aria-label="최근 코디 기록"><div className="history-ledger-title"><span className="eyebrow">Recent dressing log</span><h2>최근 남긴 선택</h2></div><ul>{archiveItems.slice(0, 3).map((item) => <li key={item.id}><div><strong>{item.name}</strong><span>{item.cityName}{item.temperature !== undefined ? ` · 체감 ${item.temperature}°` : ""}{item.condition ? ` · ${item.condition}` : ""}</span></div><div className="history-meta"><span>{item.isWorn ? "착용" : "저장"}{item.isWorn && item.isSaved ? " · 저장" : ""}</span><small>{formatArchiveDate(item.recordedAt)}</small><button type="button" onClick={() => removeArchiveItem(item.id)} aria-label={`${item.name} 기록 지우기`}>기록 지우기</button></div></li>)}</ul></section>}
       </main>
 
-      <footer className="app-footer"><span>WEATHER FIT / DAILY DRESSING INDEX</span><span>기상 데이터: Open-Meteo</span></footer>
+      <footer className="app-footer"><span>WEATHER FIT / DAILY DRESSING INDEX</span><span>{/* Open-Meteo 데이터는 CC BY 4.0 — 데이터를 보여주는 곳 가까이에 출처 링크를 둬야 한다. */}<a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Weather data by Open-Meteo.com</a></span></footer>
     </div>
   );
 }
