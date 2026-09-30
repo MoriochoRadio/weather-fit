@@ -37,6 +37,7 @@ import { OUTFITS, STYLE_LABELS as OUTFIT_STYLE_LABELS } from "@/data/outfits";
 import { PROVINCES } from "@/data/regions";
 import { rainAlert } from "@/engine/rain";
 import { BAND_LABELS, alternateOutfit, recommendOutfits, tempBand } from "@/engine/recommend";
+import { josa, withJosa } from "@/lib/josa";
 import type { Outfit, TempBand } from "@/types";
 
 // public/assets는 배포 base(GitHub Pages의 /weather-fit/) 아래에 그대로 놓인다.
@@ -274,7 +275,7 @@ function getWeatherRisks(weather: WeatherData): WeatherRisk[] {
   if (weather.current.wind_speed_10m >= 30) risks.push({ id: "wind", label: "강풍 주의", detail: `현재 바람이 ${Math.round(weather.current.wind_speed_10m)}km/h예요.`, action: "우산·모자처럼 바람 영향을 받는 소지품을 단단히 고정하세요.", level: "attention" });
   if (apparent >= 33) risks.push({ id: "heat", label: "높은 체감온도", detail: `현재 체감이 ${Math.round(apparent)}°예요.`, action: "통기성 있는 이너·물·차양 아이템을 먼저 준비하세요.", level: "attention" });
   if (apparent <= 0) risks.push({ id: "cold", label: "한랭 주의", detail: `현재 체감이 ${Math.round(apparent)}°예요.`, action: "목과 손목을 덮는 레이어, 보온용 소품을 더하세요.", level: "attention" });
-  if (uv >= 8) risks.push({ id: "uv", label: "높은 자외선", detail: `오늘 최대 UV 지수가 ${Math.round(uv)}예요.`, action: "모자·선글라스·자외선 차단제를 외출 준비에 넣으세요.", level: "attention" });
+  if (uv >= 8) risks.push({ id: "uv", label: "높은 자외선", detail: `오늘 최대 UV 지수가 ${withJosa(String(Math.round(uv)), "이에요")}.`, action: "모자·선글라스·자외선 차단제를 외출 준비에 넣으세요.", level: "attention" });
 
   return risks.slice(0, 2);
 }
@@ -553,7 +554,7 @@ export default function Home() {
       const exists = items.some((item) => item.id === city.id);
       return exists ? items.filter((item) => item.id !== city.id) : [...items, city];
     });
-    setNotice(isCityFavorite ? `${city.name}을(를) 즐겨찾기에서 뺐어요.` : `${city.name}을(를) 빠른 전환 지역으로 저장했어요.`);
+    setNotice(isCityFavorite ? `${withJosa(city.name, "을")} 즐겨찾기에서 뺐어요.` : `${withJosa(city.name, "을")} 빠른 전환 지역으로 저장했어요.`);
   };
 
   const useLocation = () => {
@@ -848,7 +849,7 @@ export default function Home() {
             <div className="outfit-actions"><button type="button" className={isWorn ? "primary-action is-done" : "primary-action"} onClick={toggleWorn}>{isWorn ? <Check size={17} /> : <Footprints size={17} />}{isWorn ? "오늘 착용 기록됨" : "오늘 입은 룩으로 기록"}</button><button type="button" className="text-action" onClick={() => void shareOutfit()}><Share2 size={16} /> 공유</button></div>
             {checklist.length > 0 && <section className="leave-checklist" aria-label="나가기 전 체크리스트"><div><span>LEAVING IN 30 SECONDS</span><strong>나가기 전</strong></div><div className="check-steps">{checklist.map((step) => { const StepIcon = step.icon; const checked = checkedSteps.includes(step.id); return <button key={step.id} type="button" aria-pressed={checked} className={checked ? "check-step is-done" : "check-step"} onClick={() => setCheckedSteps((items) => checked ? items.filter((item) => item !== step.id) : [...items, step.id])}><StepIcon size={16} /><span><b>{step.label}</b><small>{step.detail}</small></span>{checked ? <CircleCheck size={17} /> : <span className="step-marker" />}</button>; })}</div></section>}
           </article>
-          <aside className="alternate-note"><span className="eyebrow">When your wardrobe differs</span><p><strong>{outfit.alternate}</strong>으로 바꿔도 오늘의 온도 균형은 유지돼요.</p><span className="alternate-rule">{occasionLine(occasion)}</span></aside>
+          <aside className="alternate-note"><span className="eyebrow">When your wardrobe differs</span><p><strong>{outfit.alternate}</strong>{josa(outfit.alternate, "으로")} 바꿔도 오늘의 온도 균형은 유지돼요.</p><span className="alternate-rule">{occasionLine(occasion)}</span></aside>
         </section>
 
         <section className="lower-grid">
