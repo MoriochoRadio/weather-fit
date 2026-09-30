@@ -36,6 +36,7 @@ import type * as React from "react";
 import OutfitSilhouette from "@/components/OutfitSilhouette";
 import { OUTFITS, STYLE_LABELS as OUTFIT_STYLE_LABELS } from "@/data/outfits";
 import { PROVINCES } from "@/data/regions";
+import { rainAlert } from "@/engine/rain";
 import { BAND_LABELS, alternateOutfit, recommendOutfits, tempBand } from "@/engine/recommend";
 import type { Outfit, TempBand } from "@/types";
 
@@ -70,6 +71,8 @@ type WeatherData = {
     temperature_2m_max: number[];
     temperature_2m_min: number[];
     precipitation_probability_max: number[];
+    /** 예상 강수량(mm). 이 필드를 받기 전에 저장된 스냅샷에는 없다. */
+    precipitation_sum?: number[];
     uv_index_max: number[];
   };
   hourly: {
@@ -264,7 +267,8 @@ function getWeatherRisks(weather: WeatherData): WeatherRisk[] {
   const isThunder = [95, 96, 99].includes(weather.current.weather_code);
 
   if (isThunder) risks.push({ id: "thunder", label: "뇌우 가능성", detail: "천둥·번개 코드가 감지됐어요. 야외에 오래 머무르지 마세요.", action: "출발 전 실내 대기 경로와 우산을 함께 준비하세요.", level: "critical" });
-  if (rain >= 70) risks.push({ id: "heavy-rain", label: "강한 비 가능성", detail: `오늘 최고 강수 확률이 ${rain}%예요.`, action: "방수 신발·접이식 우산과 여벌 양말을 챙기세요.", level: "critical" });
+  const rainRisk = rainAlert(rain, weather.daily.precipitation_sum?.[0]);
+  if (rainRisk) risks.push(rainRisk);
   if (weather.current.wind_speed_10m >= 30) risks.push({ id: "wind", label: "강풍 주의", detail: `현재 바람이 ${Math.round(weather.current.wind_speed_10m)}km/h예요.`, action: "우산·모자처럼 바람 영향을 받는 소지품을 단단히 고정하세요.", level: "attention" });
   if (apparent >= 33) risks.push({ id: "heat", label: "높은 체감온도", detail: `현재 체감이 ${Math.round(apparent)}°예요.`, action: "통기성 있는 이너·물·차양 아이템을 먼저 준비하세요.", level: "attention" });
   if (apparent <= 0) risks.push({ id: "cold", label: "한랭 주의", detail: `현재 체감이 ${Math.round(apparent)}°예요.`, action: "목과 손목을 덮는 레이어, 보온용 소품을 더하세요.", level: "attention" });
@@ -338,7 +342,7 @@ export default function Home() {
         longitude: String(target.longitude),
         current: "temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m",
         hourly: "temperature_2m,precipitation_probability",
-        daily: "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,uv_index_max",
+        daily: "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,uv_index_max",
         forecast_days: "7",
         timezone: "auto",
       });
@@ -455,6 +459,7 @@ export default function Home() {
 
     // 강수 위험이 높은데도 샌들·캔버스화가 그대로 추천되던 모순을 막는다.
     // 실루엣과 스타일의 핵심은 보존하되, 발등과 소지품을 우선 보호하도록 한 항목만 교체한다.
+    // 강수량은 보지 않는다 — 1~2mm의 약한 비라도 젖은 노면에서 캔버스화·샌들은 젖는다.
     if (rainChance >= 50 && !picked.rainOk) {
       const rainAdjusted = {
         ...occasionAdjusted,
