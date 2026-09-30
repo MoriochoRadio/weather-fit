@@ -40,6 +40,13 @@ describe('한국 지역 데이터 (FR-13)', () => {
     expect(findCityByKey('없는곳|어디')).toBeNull();
   });
 
+  it('섬 지역도 다른 지역과 같이 군청 소재지 기준이다 (신안 = 압해읍 군청)', () => {
+    // 예전 좌표(34.83, 126.11)는 군청에서 서쪽으로 약 22km 떨어진 바다·섬 쪽이었다.
+    const 신안 = findCityByKey('신안|전남')!;
+    expect(Math.abs(신안.latitude - 34.834)).toBeLessThan(0.02);
+    expect(Math.abs(신안.longitude - 126.351)).toBeLessThan(0.02);
+  });
+
   it('동명 지역(고성)이 도별로 구분된다', () => {
     expect(findCityByKey('고성(강원)|강원')).not.toBeNull();
     expect(findCityByKey('고성(경남)|경남')).not.toBeNull();
