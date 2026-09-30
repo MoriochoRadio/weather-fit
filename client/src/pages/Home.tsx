@@ -38,6 +38,7 @@ import { PROVINCES } from "@/data/regions";
 import { rainAlert } from "@/engine/rain";
 import { BAND_LABELS, alternateOutfit, recommendOutfits, tempBand } from "@/engine/recommend";
 import { josa, withJosa } from "@/lib/josa";
+import { type WeatherData, weatherFromUnknown } from "@/lib/weatherSnapshot";
 import type { Outfit, TempBand } from "@/types";
 
 // public/assets는 배포 base(GitHub Pages의 /weather-fit/) 아래에 그대로 놓인다.
@@ -58,32 +59,6 @@ type WeatherRisk = { id: string; label: string; detail: string; action: string; 
 type LookRecord = { id: string; name: string; cityName: string; temperature?: number; condition?: string; savedAt?: string; wornAt?: string };
 type HourlyPoint = { hour: string; temperature: number; precipitation: number };
 type InstallPromptEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: "accepted" | "dismissed" }> };
-
-type WeatherData = {
-  current: {
-    temperature_2m: number;
-    apparent_temperature: number;
-    relative_humidity_2m: number;
-    weather_code: number;
-    wind_speed_10m: number;
-    time: string;
-  };
-  daily: {
-    time: string[];
-    weather_code: number[];
-    temperature_2m_max: number[];
-    temperature_2m_min: number[];
-    precipitation_probability_max: number[];
-    /** 예상 강수량(mm). 이 필드를 받기 전에 저장된 스냅샷에는 없다. */
-    precipitation_sum?: number[];
-    uv_index_max: number[];
-  };
-  hourly: {
-    time: string[];
-    temperature_2m: number[];
-    precipitation_probability: number[];
-  };
-};
 
 // 전국 10개 권역 161개 지역. 권역별로 묶인 원본을 화면이 쓰는 평면 목록으로 편다.
 const CITIES: City[] = PROVINCES.flatMap((province) =>
@@ -142,6 +117,15 @@ function writeStorage(key: string, value: unknown) {
 
 function weatherSnapshotKey(cityId: string) {
   return `${STORAGE_KEYS.snapshot}-${cityId}`;
+}
+
+// 저장된 스냅샷·지역은 모양을 확인한 뒤에만 쓴다 — 예전 형식이나 손상된 값이면 첫 렌더가 TypeError로 죽는다.
+function readWeatherSnapshot(key: string) {
+  return weatherFromUnknown(readStorage<unknown>(key, null));
+}
+
+function readStoredCity() {
+  return cityFromUnknown(readStorage<unknown>(STORAGE_KEYS.city, null)) ?? DEFAULT_CITY;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -309,10 +293,10 @@ function buildHourlyTimeline(weather: WeatherData): HourlyPoint[] {
 }
 
 export default function Home() {
-  const [city, setCity] = useState<City>(() => readStorage(STORAGE_KEYS.city, DEFAULT_CITY));
+  const [city, setCity] = useState<City>(readStoredCity);
   const [weather, setWeather] = useState<WeatherData | null>(() => {
-    const initialCity = readStorage(STORAGE_KEYS.city, DEFAULT_CITY);
-    return readStorage<WeatherData | null>(weatherSnapshotKey(initialCity.id), readStorage<WeatherData | null>(STORAGE_KEYS.snapshot, null));
+    const initialCity = readStoredCity();
+    return readWeatherSnapshot(weatherSnapshotKey(initialCity.id)) ?? readWeatherSnapshot(STORAGE_KEYS.snapshot);
   });
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [style, setStyle] = useState<StyleId>(() => readStorage<StyleId>(STORAGE_KEYS.style, "oldmoney"));
@@ -351,7 +335,8 @@ export default function Home() {
       });
       const response = await fetch(`https://api.open-meteo.com/v1/forecast?${params.toString()}`);
       if (!response.ok) throw new Error("weather response failed");
-      const data = (await response.json()) as WeatherData;
+      const data = weatherFromUnknown(await response.json());
+      if (!data) throw new Error("unexpected weather response");
       if (requestId !== weatherRequestId.current) return;
       setWeather(data);
       writeStorage(weatherSnapshotKey(target.id), data);
@@ -359,7 +344,7 @@ export default function Home() {
       setLoadState("ready");
     } catch {
       if (requestId !== weatherRequestId.current) return;
-      const fallback = readStorage<WeatherData | null>(weatherSnapshotKey(target.id), null);
+      const fallback = readWeatherSnapshot(weatherSnapshotKey(target.id));
       setWeather(fallback);
       setLoadState(fallback ? "ready" : "error");
       setErrorText(fallback ? `${target.name}의 최신 날씨를 가져오지 못해 마지막으로 확인한 정보를 표시하고 있어요.` : "날씨 정보를 불러오지 못했습니다. 연결을 확인한 뒤 다시 시도해 주세요.");
@@ -367,7 +352,7 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    const snapshot = readStorage<WeatherData | null>(weatherSnapshotKey(city.id), null);
+    const snapshot = readWeatherSnapshot(weatherSnapshotKey(city.id));
     setWeather(snapshot);
     void loadWeather(city, Boolean(snapshot));
   }, [city.id]);
